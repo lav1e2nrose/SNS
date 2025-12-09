@@ -1,7 +1,7 @@
 """
 Friendship model for friend relationships with intimacy tracking.
 """
-from sqlalchemy import Column, Integer, DateTime, Float, ForeignKey, String
+from sqlalchemy import Column, Integer, DateTime, Float, ForeignKey, String, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from backend.app.db.base import Base
@@ -21,6 +21,13 @@ class Friendship(Base):
     interaction_count = Column(Integer, default=0)  # Number of interactions
     positive_interactions = Column(Integer, default=0)  # Count of positive interactions
     negative_interactions = Column(Integer, default=0)  # Count of negative interactions
+    
+    __table_args__ = (
+        CheckConstraint('intimacy_score >= 0 AND intimacy_score <= 100', name='check_intimacy_range'),
+        CheckConstraint('interaction_count >= 0', name='check_interaction_count'),
+        CheckConstraint('positive_interactions >= 0', name='check_positive_interactions'),
+        CheckConstraint('negative_interactions >= 0', name='check_negative_interactions'),
+    )
     
     # Status
     status = Column(String(20), default="pending")  # pending, accepted, blocked
