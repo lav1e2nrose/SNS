@@ -85,6 +85,7 @@ async def websocket_endpoint(
                 sender_id=user_id,
                 receiver_id=friend_id,
                 content=content,
+                is_read=False,
                 sentiment_score=0.0,  # Placeholder for Phase 3
                 positive_score=0.0,   # Placeholder for Phase 3
                 negative_score=0.0,   # Placeholder for Phase 3
@@ -100,6 +101,7 @@ async def websocket_endpoint(
                 "sender_id": message.sender_id,
                 "receiver_id": message.receiver_id,
                 "content": message.content,
+                "is_read": message.is_read,
                 "created_at": message.created_at.isoformat(),
                 "sentiment_score": message.sentiment_score
             }
@@ -165,3 +167,81 @@ def get_chat_history(
     messages.reverse()
     
     return messages
+
+
+@router.put("/chat/{friend_id}/read", response_model=dict)
+def mark_messages_as_read(
+    friend_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Mark all messages from a friend as read.
+    
+    Args:
+        friend_id: ID of the friend
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Number of messages marked as read
+        
+    Raises:
+        HTTPException: If friend does not exist
+    """
+    # Verify friend exists
+    friend = db.query(User).filter(User.id == friend_id).first()
+    if not friend:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Friend not found"
+        )
+    
+    # Update all unread messages from friend to current user
+    updated_count = db.query(Message).filter(
+        Message.sender_id == friend_id,
+        Message.receiver_id == current_user.id,
+        Message.is_read == False
+    ).update({"is_read": True})
+    
+    db.commit()
+    
+    return {"marked_as_read": updated_count}
+
+
+@router.get("/chat/{friend_id}/unread", response_model=dict)
+def get_unread_count(
+    friend_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get count of unread messages from a friend.
+    
+    Args:
+        friend_id: ID of the friend
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Count of unread messages
+        
+    Raises:
+        HTTPException: If friend does not exist
+    """
+    # Verify friend exists
+    friend = db.query(User).filter(User.id == friend_id).first()
+    if not friend:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Friend not found"
+        )
+    
+    # Count unread messages from friend to current user
+    unread_count = db.query(Message).filter(
+        Message.sender_id == friend_id,
+        Message.receiver_id == current_user.id,
+        Message.is_read == False
+    ).count()
+    
+    return {"unread_count": unread_count}

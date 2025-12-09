@@ -8,10 +8,14 @@ SNS (Sentiment Analysis Chat) is a sophisticated chat platform that analyzes the
 
 ## Features
 
-- **User Management**: User registration, authentication, and profile management
-- **Real-time Chat**: Send and receive messages between users
-- **Sentiment Analysis**: Automatic sentiment analysis of chat messages using NLP
+- **User Management**: User registration, authentication (JWT), and profile management
+- **Real-time Chat**: Send and receive messages between users via WebSocket
+- **Read/Unread Status**: Track message read status for better communication
+- **Friend Management**: Add, accept, remove friends with full CRUD operations
+- **Sentiment Analysis**: Automatic sentiment analysis of chat messages using LLM (DashScope/Qwen)
+- **Word Cloud Generation**: Analyze word frequency in conversations using Jieba
 - **Relationship Tracking**: Monitor friendship intimacy scores based on interaction patterns
+- **Friend Rankings**: Leaderboard showing friends ranked by intimacy score
 - **Chinese Language Support**: Native support for Chinese text processing using Jieba
 
 ## Technology Stack
@@ -22,6 +26,13 @@ SNS (Sentiment Analysis Chat) is a sophisticated chat platform that analyzes the
 - **Pydantic**: Data validation using Python type annotations
 - **Uvicorn**: ASGI server for running the application
 - **Jieba**: Chinese text segmentation library for NLP
+- **DashScope**: LLM API for sentiment analysis (optional)
+- **WebSockets**: Real-time communication
+- **JWT**: Secure token-based authentication
+
+### Frontend
+- **HTML5/CSS3/JavaScript**: Modern web frontend
+- **WebSocket API**: Real-time chat functionality
 
 ### Database
 - **SQLite**: Default database (easily switchable to PostgreSQL/MySQL)
@@ -32,22 +43,49 @@ SNS (Sentiment Analysis Chat) is a sophisticated chat platform that analyzes the
 SNS/
 ├── backend/
 │   ├── app/
+│   │   ├── api/
+│   │   │   ├── api_v1/
+│   │   │   │   ├── endpoints/
+│   │   │   │   │   ├── auth.py         # Authentication endpoints
+│   │   │   │   │   ├── chat.py         # Chat and messaging endpoints
+│   │   │   │   │   ├── friends.py      # Friend management endpoints
+│   │   │   │   │   ├── analysis.py     # Analysis endpoints
+│   │   │   │   │   └── rankings.py     # Rankings endpoints
+│   │   │   │   └── api.py              # API router
+│   │   │   └── deps.py                 # API dependencies
 │   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   └── config.py          # Configuration and settings
+│   │   │   ├── config.py               # Configuration and settings
+│   │   │   └── security.py             # JWT and password utilities
 │   │   ├── db/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py            # Base class for ORM models
-│   │   │   └── session.py         # Database session handling
+│   │   │   ├── base.py                 # Base class for ORM models
+│   │   │   └── session.py              # Database session handling
 │   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── user.py            # User model
-│   │   │   ├── message.py         # Message model with sentiment fields
-│   │   │   └── friendship.py      # Friendship model with intimacy tracking
-│   │   ├── __init__.py
-│   │   └── main.py                # Application entry point
-│   ├── __init__.py
-│   └── requirements.txt           # Python dependencies
+│   │   │   ├── user.py                 # User model
+│   │   │   ├── message.py              # Message model with sentiment fields
+│   │   │   └── friendship.py           # Friendship model with intimacy tracking
+│   │   ├── schemas/
+│   │   │   ├── user.py                 # User schemas
+│   │   │   ├── message.py              # Message schemas
+│   │   │   ├── friendship.py           # Friendship schemas
+│   │   │   ├── analysis.py             # Analysis schemas
+│   │   │   ├── ranking.py              # Ranking schemas
+│   │   │   └── token.py                # Token schemas
+│   │   ├── services/
+│   │   │   ├── analysis_service.py     # Word cloud, sentiment, intimacy
+│   │   │   └── connection_manager.py   # WebSocket connection manager
+│   │   └── main.py                     # Application entry point
+│   ├── tests/
+│   │   ├── conftest.py                 # Test fixtures
+│   │   ├── test_auth.py                # Authentication tests
+│   │   ├── test_chat.py                # Chat tests
+│   │   ├── test_friends.py             # Friend management tests
+│   │   ├── test_analysis.py            # Analysis tests
+│   │   └── test_rankings.py            # Rankings tests
+│   └── requirements.txt                # Python dependencies
+├── frontend/
+│   ├── index.html                      # Main HTML page
+│   ├── styles.css                      # CSS styles
+│   └── app.js                          # JavaScript application
 └── README.md
 ```
 
@@ -62,7 +100,7 @@ SNS/
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/lav1e2nrose/SNS.git
    cd SNS
    ```
 
@@ -91,21 +129,28 @@ SNS/
    DEBUG=True
    HOST=0.0.0.0
    PORT=8000
+   SECRET_KEY=your-secret-key-here
+   DASHSCOPE_API_KEY=your-dashscope-api-key  # Optional, for LLM sentiment analysis
    ```
 
 5. **Run the application**
    ```bash
-   # From the backend directory
-   python -m backend.app.main
-   
-   # Or using uvicorn directly
-   uvicorn backend.app.main:app --reload
+   # From the project root directory
+   cd ..
+   python -m uvicorn backend.app.main:app --reload
    ```
 
-6. **Access the API**
-   - API: http://localhost:8000
+6. **Access the application**
+   - Web Interface: http://localhost:8000
    - Interactive API docs: http://localhost:8000/docs
    - Alternative API docs: http://localhost:8000/redoc
+
+### Running Tests
+
+```bash
+cd SNS
+python -m pytest backend/tests/ -v
+```
 
 ## Database Models
 
@@ -114,8 +159,8 @@ SNS/
 - Fields: id, username, email, hashed_password, full_name, created_at, updated_at
 
 ### Message
-- Stores chat messages with sentiment analysis results
-- Fields: id, sender_id, receiver_id, content, sentiment_score, positive_score, negative_score, neutral_score, created_at
+- Stores chat messages with sentiment analysis results and read status
+- Fields: id, sender_id, receiver_id, content, is_read, sentiment_score, positive_score, negative_score, neutral_score, created_at
 
 ### Friendship
 - Tracks relationships between users with intimacy metrics
@@ -123,31 +168,60 @@ SNS/
 
 ## API Endpoints
 
-### Root
-- `GET /` - Returns application information
-- `GET /health` - Health check endpoint
+### Authentication (`/api/v1/auth`)
+- `POST /register` - Register a new user
+- `POST /login` - Login and get JWT token
 
-*More endpoints will be added in subsequent phases*
+### Friends (`/api/v1/friends`)
+- `GET /` - Get list of friends
+- `POST /` - Send friend request
+- `PUT /{friend_id}` - Update friendship status (accept, block)
+- `DELETE /{friend_id}` - Remove friend
+
+### Chat (`/api/v1`)
+- `GET /chat/{friend_id}` - Get chat history
+- `PUT /chat/{friend_id}/read` - Mark messages as read
+- `GET /chat/{friend_id}/unread` - Get unread message count
+- `WebSocket /ws/{friend_id}` - Real-time chat connection
+
+### Analysis (`/api/v1/analysis`)
+- `POST /sentiment` - Analyze text sentiment
+- `POST /wordcloud` - Generate word cloud data
+- `POST /intimacy` - Calculate intimacy score
+
+### Rankings (`/api/v1/rankings`)
+- `GET /top-friends` - Get friends ranked by intimacy score
+
+### System
+- `GET /` - Serve frontend or return API info
+- `GET /health` - Health check endpoint
 
 ## Development Roadmap
 
-### Phase 1: Project Initialization ✓
-- [x] Set up project structure
-- [x] Create database models
-- [x] Configure FastAPI application
-- [x] Add documentation
+### Phase 1: 基础框架搭建 ✓
+- [x] 初始化 GitHub 仓库
+- [x] 搭建 FastAPI 后端架子，配置数据库连接
+- [x] 实现用户注册/登录 (JWT Auth)
 
-### Phase 2: Chat Functionality (Upcoming)
-- [ ] Implement user authentication
-- [ ] Create chat message endpoints
-- [ ] Add WebSocket support for real-time messaging
-- [ ] Implement friend management
+### Phase 2: 聊天功能实现 ✓
+- [x] 实现 WebSocket 实时通讯
+- [x] 实现 RESTful API 发送消息、获取历史
+- [x] 实现已读/未读状态
+- [x] 实现好友管理 (添加/删除/接受好友)
+- [x] 编写 Web 前端页面测试聊天
 
-### Phase 3: NLP and Analysis (Upcoming)
-- [ ] Integrate sentiment analysis
-- [ ] Implement intimacy score calculation
-- [ ] Add conversation insights
-- [ ] Create analytics dashboard
+### Phase 3: 数据分析引擎 ✓
+- [x] 集成 jieba 进行分词和词频统计
+- [x] 集成 LLM API 进行情感打分
+- [x] 实现"亲密值"计算逻辑
+
+### Phase 4: 排行榜与可视化 ✓
+- [x] 后端实现排行榜 API
+- [x] 前端页面开发：好友列表、聊天窗口、数据分析面板
+
+### Phase 5: 测试与交付 ✓
+- [x] 编写单元测试 (Pytest) - 30 tests
+- [x] 集成测试聊天流程
 
 ## Contributing
 

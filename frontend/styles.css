@@ -1,0 +1,400 @@
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    height: 100vh;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Auth Section */
+.section {
+    height: 100vh;
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 50px 20px;
+    text-align: center;
+}
+
+.auth-container h1 {
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 10px 30px;
+    border: none;
+    background-color: #ddd;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.tab-btn:first-child {
+    border-radius: 5px 0 0 5px;
+}
+
+.tab-btn:last-child {
+    border-radius: 0 5px 5px 0;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.auth-form input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.auth-form button {
+    padding: 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.auth-form button:hover {
+    background-color: #45a049;
+}
+
+.message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.message.error {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.message.success {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* Main Section */
+.main-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background-color: #2c3e50;
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #34495e;
+}
+
+.sidebar-header h2 {
+    font-size: 18px;
+}
+
+#logout-btn {
+    padding: 5px 10px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.friends-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.friend-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid #34495e;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.friend-item:hover {
+    background-color: #34495e;
+}
+
+.friend-item.active {
+    background-color: #3498db;
+}
+
+.friend-item .username {
+    font-weight: bold;
+}
+
+.friend-item .status {
+    font-size: 12px;
+    color: #bdc3c7;
+}
+
+.friend-item .unread-badge {
+    background-color: #e74c3c;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.add-friend {
+    padding: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.add-friend input {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 3px;
+}
+
+.add-friend button {
+    padding: 8px 12px;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+/* Chat Area */
+.chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #ecf0f1;
+}
+
+.chat-header {
+    padding: 20px;
+    background-color: white;
+    border-bottom: 1px solid #ddd;
+}
+
+.chat-header h3 {
+    color: #333;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message-item {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 15px;
+    position: relative;
+}
+
+.message-item.sent {
+    align-self: flex-end;
+    background-color: #3498db;
+    color: white;
+    border-bottom-right-radius: 5px;
+}
+
+.message-item.received {
+    align-self: flex-start;
+    background-color: white;
+    color: #333;
+    border-bottom-left-radius: 5px;
+}
+
+.message-item .content {
+    word-wrap: break-word;
+}
+
+.message-item .meta {
+    font-size: 11px;
+    margin-top: 5px;
+    opacity: 0.7;
+}
+
+.message-item .read-status {
+    font-size: 10px;
+    margin-left: 10px;
+}
+
+.chat-input {
+    padding: 20px;
+    background-color: white;
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    font-size: 16px;
+}
+
+.chat-input button {
+    padding: 12px 25px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+}
+
+.chat-input button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+/* Analysis Panel */
+.analysis-panel {
+    width: 300px;
+    background-color: white;
+    border-left: 1px solid #ddd;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.analysis-panel h3 {
+    color: #333;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.analysis-section {
+    margin-bottom: 20px;
+}
+
+.analysis-section h4 {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.score {
+    font-size: 36px;
+    font-weight: bold;
+    color: #3498db;
+    text-align: center;
+}
+
+.factor {
+    font-size: 20px;
+    color: #27ae60;
+    text-align: center;
+}
+
+.word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    min-height: 80px;
+}
+
+.word-item {
+    padding: 4px 8px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.word-item.freq-high {
+    font-size: 16px;
+    background-color: #e74c3c;
+}
+
+.word-item.freq-medium {
+    font-size: 14px;
+    background-color: #f39c12;
+}
+
+.analysis-panel button {
+    width: 100%;
+    padding: 10px;
+    background-color: #9b59b6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.rankings-list {
+    margin-top: 10px;
+}
+
+.ranking-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.ranking-item .rank {
+    font-weight: bold;
+    color: #f39c12;
+    width: 30px;
+}
+
+.ranking-item .name {
+    flex: 1;
+}
+
+.ranking-item .score {
+    font-size: 14px;
+    color: #27ae60;
+}
