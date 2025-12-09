@@ -9,6 +9,7 @@ alembic==1.12.1
 # Data Validation
 pydantic==2.5.0
 pydantic-settings==2.1.0
+email-validator==2.1.0
 
 # Chinese NLP
 jieba==0.42.1
@@ -23,3 +24,10 @@ httpx==0.25.2
 
 # Form Data
 python-multipart==0.0.18
+
+# Authentication & Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.4.0
+
+# WebSocket
+websockets==12.0
