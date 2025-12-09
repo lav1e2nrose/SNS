@@ -1,0 +1,25 @@
+# Web Framework
+fastapi==0.109.1
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Data Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Chinese NLP
+jieba==0.42.1
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Testing (optional but recommended)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# Form Data
+python-multipart==0.0.18
