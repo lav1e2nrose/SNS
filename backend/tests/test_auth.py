@@ -90,3 +90,42 @@ def test_login_nonexistent_user(client):
         }
     )
     assert response.status_code == 401
+
+
+def test_register_and_login_with_long_password(client):
+    """Test registration and login with password longer than 72 bytes."""
+    # Password longer than bcrypt's 72-byte limit
+    long_password = "a" * 100
+    
+    # Register with long password
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "longpassuser",
+            "email": "longpass@example.com",
+            "password": long_password,
+            "full_name": "Long Password User"
+        }
+    )
+    assert response.status_code == 201
+    
+    # Login with full long password should succeed
+    response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "longpassuser",
+            "password": long_password
+        }
+    )
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+    
+    # Login with truncated password (72 chars) should fail
+    response = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "longpassuser",
+            "password": "a" * 72
+        }
+    )
+    assert response.status_code == 401
