@@ -2,6 +2,7 @@
 Tests for chat endpoints.
 """
 import pytest
+import json
 from fastapi.testclient import TestClient
 from backend.app.models.message import Message
 
@@ -108,3 +109,51 @@ def test_unread_count_nonexistent_friend(client, auth_headers):
         headers=auth_headers
     )
     assert response.status_code == 404
+
+
+def test_websocket_chat(client, auth_token, test_user, test_user2, db_session):
+    """Test WebSocket chat functionality."""
+    # Connect to WebSocket with token
+    with client.websocket_connect(
+        f"/api/v1/ws/{test_user2.id}?token={auth_token}"
+    ) as websocket:
+        # Send a message
+        message_content = "Hello via WebSocket!"
+        websocket.send_text(json.dumps({"content": message_content}))
+        
+        # Receive echo response
+        data = websocket.receive_text()
+        response = json.loads(data)
+        
+        assert response["content"] == message_content
+        assert response["sender_id"] == test_user.id
+        assert response["receiver_id"] == test_user2.id
+        assert response["is_read"] == False
+
+
+def test_websocket_chat_invalid_token(client, test_user2):
+    """Test WebSocket connection with invalid token."""
+    # This should fail to connect or close immediately
+    try:
+        with client.websocket_connect(
+            f"/api/v1/ws/{test_user2.id}?token=invalid_token"
+        ) as websocket:
+            # If connection succeeds but token is invalid, 
+            # we should not be able to receive any normal response
+            pytest.fail("Should not connect with invalid token")
+    except Exception:
+        # Expected: connection should fail or be rejected
+        pass
+
+
+def test_websocket_chat_nonexistent_friend(client, auth_token, test_user):
+    """Test WebSocket connection to non-existent friend."""
+    try:
+        with client.websocket_connect(
+            f"/api/v1/ws/99999?token={auth_token}"
+        ) as websocket:
+            # Should close immediately
+            pytest.fail("Should not connect to non-existent friend")
+    except Exception:
+        # Expected: connection should fail
+        pass

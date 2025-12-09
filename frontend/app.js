@@ -165,7 +165,26 @@ async function loadFriends() {
         
         if (response.ok) {
             const friends = await response.json();
-            renderFriendsList(friends);
+            // Fetch unread counts for each friend
+            const friendsWithUnread = await Promise.all(
+                friends.map(async (friend) => {
+                    try {
+                        const unreadResponse = await fetch(`${API_BASE}/chat/${friend.id}/unread`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        if (unreadResponse.ok) {
+                            const unreadData = await unreadResponse.json();
+                            return { ...friend, unread_count: unreadData.unread_count };
+                        }
+                    } catch (e) {
+                        console.error('Failed to get unread count:', e);
+                    }
+                    return { ...friend, unread_count: 0 };
+                })
+            );
+            renderFriendsList(friendsWithUnread);
         }
     } catch (err) {
         console.error('Failed to load friends:', err);
@@ -188,11 +207,18 @@ function renderFriendsList(friends) {
         if (friend.id === currentFriendId) {
             div.classList.add('active');
         }
+        
+        // Build unread badge HTML if there are unread messages
+        const unreadBadge = friend.unread_count > 0 
+            ? `<span class="unread-badge">${friend.unread_count}</span>` 
+            : '';
+        
         div.innerHTML = `
             <div>
                 <div class="username">${friend.username}</div>
                 <div class="status">${friend.status === 'accepted' ? '已接受' : friend.status === 'pending' ? '待确认' : friend.status}</div>
             </div>
+            ${unreadBadge}
         `;
         div.onclick = (e) => selectFriend(e, friend.id, friend.username);
         container.appendChild(div);

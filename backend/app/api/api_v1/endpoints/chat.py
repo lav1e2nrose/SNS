@@ -3,12 +3,14 @@ Chat endpoints for real-time messaging and history.
 """
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from typing import List
 import json
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
 from backend.app.models.message import Message
+from backend.app.models.friendship import Friendship
 from backend.app.schemas.message import MessageResponse
 from backend.app.services.connection_manager import manager
 from backend.app.core.security import decode_access_token
@@ -94,6 +96,24 @@ async def websocket_endpoint(
             db.add(message)
             db.commit()
             db.refresh(message)
+            
+            # Update friendship interaction count
+            friendship = db.query(Friendship).filter(
+                or_(
+                    and_(Friendship.user_id == user_id, Friendship.friend_id == friend_id),
+                    and_(Friendship.user_id == friend_id, Friendship.friend_id == user_id)
+                )
+            ).first()
+            
+            if friendship:
+                friendship.interaction_count = (friendship.interaction_count or 0) + 1
+                # Update intimacy score based on interaction count (simple increment)
+                # More sophisticated calculation happens in the analysis endpoint
+                if friendship.intimacy_score is None:
+                    friendship.intimacy_score = 0.0
+                # Small increment for each message, capped at 100
+                friendship.intimacy_score = min(100.0, friendship.intimacy_score + 0.1)
+                db.commit()
             
             # Prepare response message
             response_data = {
