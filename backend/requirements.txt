@@ -30,6 +30,7 @@ python-multipart==0.0.18
 
 # Authentication & Security
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # Pin bcrypt version for passlib 1.7.4 compatibility
 python-jose[cryptography]==3.4.0
 
 # WebSocket
