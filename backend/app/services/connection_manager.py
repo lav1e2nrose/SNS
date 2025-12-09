@@ -53,8 +53,17 @@ class ConnectionManager:
         """
         if user_id in self.active_connections:
             # Send to all active connections for this user
+            disconnected = []
             for connection in self.active_connections[user_id]:
-                await connection.send_text(message)
+                try:
+                    await connection.send_text(message)
+                except Exception:
+                    # Connection is broken, mark for removal
+                    disconnected.append(connection)
+            
+            # Remove disconnected connections
+            for connection in disconnected:
+                self.disconnect(connection, user_id)
 
 
 # Global connection manager instance

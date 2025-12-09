@@ -38,8 +38,14 @@ async def websocket_endpoint(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     
-    user_id = payload.get("sub")
-    if user_id is None:
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    
+    try:
+        user_id = int(user_id_str)
+    except (ValueError, TypeError):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     
