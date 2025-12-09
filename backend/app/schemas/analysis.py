@@ -53,4 +53,4 @@ class IntimacyAnalysisRequest(BaseModel):
     message_count: int = Field(..., ge=0, description="Total number of messages exchanged")
     last_sender_id: int = Field(..., description="ID of user who sent the last message")
     current_user_id: int = Field(..., description="ID of the current user")
-    consecutive_messages: Dict[int, int] = Field(..., description="Dictionary mapping user_id to count of consecutive messages")
+    consecutive_messages: Dict[int, int] = Field(..., description="Dictionary mapping user_id to maximum count of consecutive messages sent without interruption by the other user")

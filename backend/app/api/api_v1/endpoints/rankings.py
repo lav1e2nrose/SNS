@@ -4,7 +4,8 @@ Rankings endpoints for friend ranking and relationship insights.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from typing import List
+from typing import List, Dict, Set
+import math
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -62,10 +63,21 @@ def get_top_friends(
             Friendship.status == "accepted"
         ).all()
         
-        # Combine and process friendships
+        # Combine friendships and track unique friends to avoid duplicates
+        friend_data: Dict[int, tuple] = {}  # friend_id -> (friendship, friend)
+        
+        for friendship, friend in friendships_as_user:
+            if friend.id not in friend_data:
+                friend_data[friend.id] = (friendship, friend)
+        
+        for friendship, friend in friendships_as_friend:
+            if friend.id not in friend_data:
+                friend_data[friend.id] = (friendship, friend)
+        
+        # Process unique friendships
         friend_rankings = []
         
-        for friendship, friend in friendships_as_user + friendships_as_friend:
+        for friend_id, (friendship, friend) in friend_data.items():
             # Get last message timestamp
             last_message = db.query(Message).filter(
                 (
@@ -79,7 +91,7 @@ def get_top_friends(
             
             # If intimacy score is not set or is 0, calculate a basic score from messages
             intimacy_score = friendship.intimacy_score
-            if intimacy_score == 0.0:
+            if intimacy_score is None or intimacy_score == 0.0:
                 # Count messages for this friendship
                 message_count = db.query(func.count(Message.id)).filter(
                     (
@@ -99,9 +111,8 @@ def get_top_friends(
                     Message.sentiment_score.isnot(None)
                 ).scalar() or 0.0
                 
-                # Simple intimacy score calculation: message count * 0.5 + sentiment * 20
+                # Simple intimacy score calculation using logarithmic scaling and sentiment
                 # Capped at 100
-                import math
                 intimacy_score = min(100.0, math.log(message_count + 1) * 10 + (avg_sentiment + 1) * 20)
             
             friend_rankings.append(
