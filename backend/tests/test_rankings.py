@@ -5,6 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 from backend.app.models.message import Message
 from backend.app.models.friendship import Friendship
+from backend.app.models.user import User
+from backend.app.core.security import get_password_hash
 
 
 def test_get_top_friends_empty(client, auth_headers, test_user):
@@ -45,9 +47,6 @@ def test_get_top_friends_with_data(client, auth_headers, test_user, test_user2, 
 
 def test_get_top_friends_ordered(client, auth_headers, test_user, db_session):
     """Test that top friends are ordered by intimacy score."""
-    from backend.app.models.user import User
-    from backend.app.core.security import get_password_hash
-    
     # Create additional test users
     user2 = User(
         username="friend1",
@@ -104,9 +103,6 @@ def test_get_top_friends_ordered(client, auth_headers, test_user, db_session):
 
 def test_get_top_friends_limit(client, auth_headers, test_user, db_session):
     """Test limiting the number of top friends returned."""
-    from backend.app.models.user import User
-    from backend.app.core.security import get_password_hash
-    
     # Create multiple friends
     for i in range(5):
         user = User(

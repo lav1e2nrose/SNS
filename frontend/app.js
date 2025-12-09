@@ -194,7 +194,7 @@ function renderFriendsList(friends) {
                 <div class="status">${friend.status === 'accepted' ? '已接受' : friend.status === 'pending' ? '待确认' : friend.status}</div>
             </div>
         `;
-        div.onclick = () => selectFriend(friend.id, friend.username);
+        div.onclick = (e) => selectFriend(e, friend.id, friend.username);
         container.appendChild(div);
     });
 }
@@ -227,7 +227,7 @@ async function addFriend() {
 }
 
 // Select a friend to chat with
-async function selectFriend(friendId, username) {
+async function selectFriend(event, friendId, username) {
     currentFriendId = friendId;
     
     // Update UI
