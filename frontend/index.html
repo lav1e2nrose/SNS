@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNS - 情感分析聊天应用</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login/Register Section -->
+        <div id="auth-section" class="section">
+            <div class="auth-container">
+                <h1>SNS 情感分析聊天</h1>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('login')">登录</button>
+                    <button class="tab-btn" onclick="showTab('register')">注册</button>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form">
+                    <input type="text" id="login-username" placeholder="用户名" required>
+                    <input type="password" id="login-password" placeholder="密码" required>
+                    <button type="submit">登录</button>
+                </form>
+                
+                <!-- Register Form -->
+                <form id="register-form" class="auth-form hidden">
+                    <input type="text" id="register-username" placeholder="用户名" required>
+                    <input type="email" id="register-email" placeholder="邮箱" required>
+                    <input type="password" id="register-password" placeholder="密码" required>
+                    <input type="text" id="register-fullname" placeholder="全名（可选）">
+                    <button type="submit">注册</button>
+                </form>
+                
+                <p id="auth-message" class="message"></p>
+            </div>
+        </div>
+        
+        <!-- Main Chat Section -->
+        <div id="main-section" class="section hidden">
+            <div class="main-container">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <h2>好友列表</h2>
+                        <button id="logout-btn" onclick="logout()">退出</button>
+                    </div>
+                    <div id="friends-list" class="friends-list">
+                        <!-- Friends will be loaded here -->
+                    </div>
+                    <div class="add-friend">
+                        <input type="number" id="add-friend-id" placeholder="好友ID">
+                        <button onclick="addFriend()">添加好友</button>
+                    </div>
+                </div>
+                
+                <!-- Chat Area -->
+                <div class="chat-area">
+                    <div class="chat-header" id="chat-header">
+                        <h3>选择一个好友开始聊天</h3>
+                    </div>
+                    <div id="messages" class="messages">
+                        <!-- Messages will appear here -->
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="message-input" placeholder="输入消息..." disabled>
+                        <button id="send-btn" onclick="sendMessage()" disabled>发送</button>
+                    </div>
+                </div>
+                
+                <!-- Analysis Panel -->
+                <div class="analysis-panel">
+                    <h3>数据分析</h3>
+                    <div id="analysis-content">
+                        <div class="analysis-section">
+                            <h4>亲密度评分</h4>
+                            <div id="intimacy-score" class="score">--</div>
+                        </div>
+                        <div class="analysis-section">
+                            <h4>情感因素</h4>
+                            <div id="sentiment-factor" class="factor">--</div>
+                        </div>
+                        <div class="analysis-section">
+                            <h4>互动频率</h4>
+                            <div id="frequency-factor" class="factor">--</div>
+                        </div>
+                        <div class="analysis-section">
+                            <h4>高频词汇</h4>
+                            <div id="word-cloud" class="word-cloud">
+                                <!-- Word cloud will appear here -->
+                            </div>
+                        </div>
+                        <button onclick="analyzeChat()">分析聊天</button>
+                    </div>
+                    
+                    <h3>好友排行榜</h3>
+                    <div id="rankings-content">
+                        <button onclick="loadRankings()">加载排行榜</button>
+                        <div id="rankings-list" class="rankings-list">
+                            <!-- Rankings will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

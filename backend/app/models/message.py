@@ -1,7 +1,7 @@
 """
 Message model for chat messages with sentiment analysis.
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, CheckConstraint, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from backend.app.db.base import Base
@@ -16,6 +16,9 @@ class Message(Base):
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
+    
+    # Read status field
+    is_read = Column(Boolean, default=False, nullable=False)
     
     # Sentiment analysis fields
     sentiment_score = Column(Float, nullable=True)  # Overall sentiment score (-1 to 1)

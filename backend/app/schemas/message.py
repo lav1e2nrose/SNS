@@ -17,6 +17,7 @@ class MessageResponse(BaseModel):
     sender_id: int
     receiver_id: int
     content: str
+    is_read: bool = False
     sentiment_score: Optional[float] = None
     positive_score: Optional[float] = None
     negative_score: Optional[float] = None
