@@ -23,3 +23,10 @@ httpx==0.25.2
 
 # Form Data
 python-multipart==0.0.18
+
+# Authentication & Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# WebSocket
+websockets==12.0

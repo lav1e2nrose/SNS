@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
 from backend.app.db.base import Base
 from backend.app.db.session import engine
+from backend.app.api.api_v1.api import api_router
 
 # Import models to ensure they are registered with SQLAlchemy
 from backend.app.models import user, message, friendship
@@ -28,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API v1 router
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
