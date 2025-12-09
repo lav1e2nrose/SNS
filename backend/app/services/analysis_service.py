@@ -3,11 +3,17 @@ Analysis service for word cloud generation, sentiment analysis, and intimacy sco
 """
 import os
 import jieba
+import json
+import math
+import logging
 from collections import Counter
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 from backend.app.schemas.analysis import WordCloudItem, SentimentResult, IntimacyResult
 from backend.app.core.config import settings
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Try to import dashscope, but make it optional
 try:
@@ -114,14 +120,20 @@ def analyze_sentiment_llm(text: str) -> SentimentResult:
             # Parse response
             result_text = response.output.text.strip()
             
-            # Extract JSON from response (handle potential markdown code blocks)
-            if "```json" in result_text:
+            # Extract JSON from response (handle potential markdown code blocks and various formats)
+            # Try to find JSON content between various delimiters
+            import re
+            json_pattern = r'\{[^}]*"sentiment_score"[^}]*\}'
+            json_match = re.search(json_pattern, result_text)
+            
+            if json_match:
+                result_text = json_match.group()
+            elif "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0].strip()
             elif "```" in result_text:
                 result_text = result_text.split("```")[1].split("```")[0].strip()
             
             # Parse JSON
-            import json
             result_data = json.loads(result_text)
             
             return SentimentResult(
@@ -140,7 +152,7 @@ def analyze_sentiment_llm(text: str) -> SentimentResult:
             )
     except Exception as e:
         # Log error and return neutral sentiment
-        print(f"Error in sentiment analysis: {e}")
+        logger.error(f"Error in sentiment analysis: {e}", exc_info=True)
         return SentimentResult(
             sentiment_score=0.0,
             positive_score=0.33,
@@ -177,7 +189,6 @@ def calculate_intimacy(
     # Factor 2: Interaction Frequency (0-30 points)
     # More messages = higher frequency score
     # Use logarithmic scale to prevent over-weighting high message counts
-    import math
     if message_count > 0:
         frequency_factor = min(30, math.log(message_count + 1) * 10)
     else:
