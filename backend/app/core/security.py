@@ -1,6 +1,8 @@
 """
 Security utilities for JWT token handling and password hashing.
 """
+import base64
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, Any
 from jose import jwt, JWTError
@@ -9,6 +11,24 @@ from backend.app.core.config import settings
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _prehash_password(password: str) -> str:
+    """
+    Pre-hash password with SHA-256 to handle passwords longer than 72 bytes.
+    
+    Bcrypt has a 72-byte limit for passwords. This function hashes the password
+    with SHA-256 first, then base64 encodes it to create a fixed-length input
+    that bcrypt can handle regardless of the original password length.
+    
+    Args:
+        password: Plain text password
+        
+    Returns:
+        Base64-encoded SHA-256 hash of the password
+    """
+    sha256_hash = hashlib.sha256(password.encode('utf-8')).digest()
+    return base64.b64encode(sha256_hash).decode('ascii')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -22,7 +42,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    prehashed = _prehash_password(plain_password)
+    return pwd_context.verify(prehashed, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
@@ -35,7 +56,8 @@ def get_password_hash(password: str) -> str:
     Returns:
         Hashed password
     """
-    return pwd_context.hash(password)
+    prehashed = _prehash_password(password)
+    return pwd_context.hash(prehashed)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
