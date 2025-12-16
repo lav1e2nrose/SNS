@@ -1,10 +1,18 @@
 // SNS Chat Application Frontend
+// Modern and feature-rich chat application with sentiment analysis
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = window.location.origin + '/api/v1';
 let token = null;
 let currentUserId = null;
 let currentFriendId = null;
+let currentFriendName = null;
 let ws = null;
+let wordCloudData = [];
+let analysisData = null;
+
+// ECharts instances
+let wordcloudChart = null;
+let radarChart = null;
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,6 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') {
             sendMessage();
         }
+    });
+    
+    // Initialize charts when modal opens
+    window.addEventListener('resize', () => {
+        if (wordcloudChart) wordcloudChart.resize();
+        if (radarChart) radarChart.resize();
     });
 });
 
@@ -143,6 +157,7 @@ function logout() {
     token = null;
     currentUserId = null;
     currentFriendId = null;
+    currentFriendName = null;
     localStorage.removeItem('token');
     
     if (ws) {
@@ -197,7 +212,12 @@ function renderFriendsList(friends) {
     container.innerHTML = '';
     
     if (friends.length === 0) {
-        container.innerHTML = '<p style="padding: 20px; color: #bdc3c7;">暂无好友</p>';
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 20px; text-align: center;">
+                <i class="fas fa-user-friends" style="font-size: 32px; opacity: 0.3; margin-bottom: 8px;"></i>
+                <p style="color: var(--text-muted); font-size: 12px;">暂无好友</p>
+            </div>
+        `;
         return;
     }
     
@@ -213,10 +233,16 @@ function renderFriendsList(friends) {
             ? `<span class="unread-badge">${friend.unread_count}</span>` 
             : '';
         
+        // Get first character of username for avatar
+        const avatarChar = friend.username.charAt(0).toUpperCase();
+        
         div.innerHTML = `
-            <div>
-                <div class="username">${friend.username}</div>
-                <div class="status">${friend.status === 'accepted' ? '已接受' : friend.status === 'pending' ? '待确认' : friend.status}</div>
+            <div class="friend-info">
+                <div class="friend-avatar">${avatarChar}</div>
+                <div>
+                    <div class="username">${escapeHtml(friend.username)}</div>
+                    <div class="status">${friend.status === 'accepted' ? '已接受' : friend.status === 'pending' ? '待确认' : friend.status}</div>
+                </div>
             </div>
             ${unreadBadge}
         `;
@@ -255,22 +281,44 @@ async function addFriend() {
 // Select a friend to chat with
 async function selectFriend(event, friendId, username) {
     currentFriendId = friendId;
+    currentFriendName = username;
+    
+    // Get first character of username for avatar
+    const avatarChar = username.charAt(0).toUpperCase();
     
     // Update UI
-    document.getElementById('chat-header').innerHTML = `<h3>与 ${username} 聊天</h3>`;
+    document.getElementById('chat-header').innerHTML = `
+        <div class="chat-header-info">
+            <div class="chat-avatar">${avatarChar}</div>
+            <div class="chat-header-text">
+                <h3>与 ${escapeHtml(username)} 聊天</h3>
+                <span class="chat-status online">在线</span>
+            </div>
+        </div>
+        <div class="chat-header-actions">
+            <button class="btn-icon" onclick="openVisualization()" title="查看词云和雷达图" id="viz-btn">
+                <i class="fas fa-chart-pie"></i>
+            </button>
+        </div>
+    `;
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-btn').disabled = false;
     
     // Update active friend
     const friends = document.querySelectorAll('.friend-item');
     friends.forEach(f => f.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
     
     // Load chat history
     await loadChatHistory(friendId);
     
     // Mark messages as read
     await markAsRead(friendId);
+    
+    // Reload friends to update unread counts
+    loadFriends();
     
     // Connect WebSocket
     connectWebSocket(friendId);
@@ -299,6 +347,16 @@ function renderMessages(messages) {
     const container = document.getElementById('messages');
     container.innerHTML = '';
     
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="messages-empty">
+                <i class="fas fa-comments"></i>
+                <p>开始你们的对话吧！</p>
+            </div>
+        `;
+        return;
+    }
+    
     messages.forEach(msg => {
         appendMessage(msg);
     });
@@ -310,6 +368,13 @@ function renderMessages(messages) {
 // Append a single message
 function appendMessage(msg) {
     const container = document.getElementById('messages');
+    
+    // Remove empty state if exists
+    const emptyState = container.querySelector('.messages-empty');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
     const div = document.createElement('div');
     const isSent = msg.sender_id === currentUserId;
     div.className = `message-item ${isSent ? 'sent' : 'received'}`;
@@ -321,7 +386,7 @@ function appendMessage(msg) {
     
     let readStatus = '';
     if (isSent) {
-        readStatus = `<span class="read-status">${msg.is_read ? '已读' : '未读'}</span>`;
+        readStatus = `<span class="read-status"><i class="fas fa-${msg.is_read ? 'check-double' : 'check'}"></i> ${msg.is_read ? '已读' : '未读'}</span>`;
     }
     
     div.innerHTML = `
@@ -353,7 +418,8 @@ function connectWebSocket(friendId) {
         ws.close();
     }
     
-    const wsUrl = `ws://localhost:8000/api/v1/ws/${friendId}?token=${token}`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${friendId}?token=${token}`;
     ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
@@ -437,13 +503,13 @@ async function analyzeChat() {
             },
             body: JSON.stringify({
                 messages: messageContents,
-                top_n: 15
+                top_n: 50
             })
         });
         
         if (wordCloudResponse.ok) {
-            const wordCloud = await wordCloudResponse.json();
-            renderWordCloud(wordCloud);
+            wordCloudData = await wordCloudResponse.json();
+            renderWordCloud(wordCloudData);
         }
         
         // Calculate intimacy score
@@ -494,10 +560,17 @@ async function analyzeChat() {
         });
         
         if (intimacyResponse.ok) {
-            const intimacy = await intimacyResponse.json();
-            document.getElementById('intimacy-score').textContent = intimacy.intimacy_score.toFixed(1);
-            document.getElementById('sentiment-factor').textContent = intimacy.sentiment_factor.toFixed(1);
-            document.getElementById('frequency-factor').textContent = intimacy.frequency_factor.toFixed(1);
+            analysisData = await intimacyResponse.json();
+            
+            // Update score circle
+            const scoreCircle = document.getElementById('intimacy-score');
+            scoreCircle.innerHTML = `
+                <span class="score-value">${analysisData.intimacy_score.toFixed(1)}</span>
+                <span class="score-label">分</span>
+            `;
+            
+            document.getElementById('sentiment-factor').textContent = analysisData.sentiment_factor.toFixed(1);
+            document.getElementById('frequency-factor').textContent = analysisData.frequency_factor.toFixed(1);
         }
         
     } catch (err) {
@@ -506,19 +579,25 @@ async function analyzeChat() {
     }
 }
 
-// Render word cloud
+// Render word cloud (simple version for panel)
 function renderWordCloud(words) {
     const container = document.getElementById('word-cloud');
     container.innerHTML = '';
     
-    if (words.length === 0) {
-        container.innerHTML = '<span style="color: #999;">暂无数据</span>';
+    if (!words || words.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-cloud"></i>
+                <span>暂无数据</span>
+            </div>
+        `;
         return;
     }
     
     const maxFreq = Math.max(...words.map(w => w.frequency));
+    const displayWords = words.slice(0, 15); // Show top 15 in panel
     
-    words.forEach(word => {
+    displayWords.forEach(word => {
         const span = document.createElement('span');
         span.className = 'word-item';
         
@@ -558,7 +637,12 @@ function renderRankings(rankings) {
     container.innerHTML = '';
     
     if (rankings.length === 0) {
-        container.innerHTML = '<p style="padding: 10px; color: #999;">暂无排行数据</p>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-crown"></i>
+                <span>暂无排行数据</span>
+            </div>
+        `;
         return;
     }
     
@@ -566,11 +650,256 @@ function renderRankings(rankings) {
         const div = document.createElement('div');
         div.className = 'ranking-item';
         div.innerHTML = `
-            <span class="rank">#${index + 1}</span>
-            <span class="name">${friend.username}</span>
+            <span class="rank">${index + 1}</span>
+            <span class="name">${escapeHtml(friend.username)}</span>
             <span class="score">${friend.intimacy_score.toFixed(1)}</span>
         `;
         container.appendChild(div);
+    });
+}
+
+// ===============================================
+// Visualization Modal Functions
+// ===============================================
+
+function openVisualization() {
+    if (!currentFriendId) {
+        alert('请先选择一个好友');
+        return;
+    }
+    
+    const modal = document.getElementById('viz-modal');
+    modal.classList.remove('hidden');
+    
+    // Initialize charts
+    setTimeout(() => {
+        initWordcloudChart();
+        initRadarChart();
+        
+        // Refresh data if available
+        if (wordCloudData.length > 0) {
+            updateWordcloudChart();
+        } else {
+            refreshVisualization();
+        }
+        if (analysisData) {
+            updateRadarChart();
+        }
+    }, 100);
+}
+
+function closeVisualization() {
+    const modal = document.getElementById('viz-modal');
+    modal.classList.add('hidden');
+}
+
+function switchVizTab(tab) {
+    const tabs = document.querySelectorAll('.viz-tab');
+    const wordcloudPanel = document.getElementById('viz-wordcloud');
+    const radarPanel = document.getElementById('viz-radar');
+    
+    tabs.forEach(t => t.classList.remove('active'));
+    
+    if (tab === 'wordcloud') {
+        tabs[0].classList.add('active');
+        wordcloudPanel.classList.remove('hidden');
+        radarPanel.classList.add('hidden');
+        if (wordcloudChart) wordcloudChart.resize();
+    } else {
+        tabs[1].classList.add('active');
+        wordcloudPanel.classList.add('hidden');
+        radarPanel.classList.remove('hidden');
+        if (radarChart) radarChart.resize();
+    }
+}
+
+async function refreshVisualization() {
+    await analyzeChat();
+    updateWordcloudChart();
+    updateRadarChart();
+}
+
+// Initialize ECharts Word Cloud
+function initWordcloudChart() {
+    const chartDom = document.getElementById('wordcloud-chart');
+    if (!chartDom) return;
+    
+    if (wordcloudChart) {
+        wordcloudChart.dispose();
+    }
+    
+    wordcloudChart = echarts.init(chartDom, 'dark');
+    
+    // Set initial empty state
+    const option = {
+        backgroundColor: 'transparent',
+        title: {
+            text: '词语云图',
+            left: 'center',
+            textStyle: {
+                color: '#f8fafc',
+                fontSize: 18,
+                fontWeight: 600
+            }
+        },
+        series: [{
+            type: 'wordCloud',
+            shape: 'circle',
+            left: 'center',
+            top: 'center',
+            width: '90%',
+            height: '80%',
+            sizeRange: [14, 60],
+            rotationRange: [-45, 45],
+            rotationStep: 15,
+            gridSize: 8,
+            drawOutOfBound: false,
+            textStyle: {
+                fontFamily: 'Inter, Noto Sans SC, sans-serif',
+                fontWeight: 'bold',
+                color: function () {
+                    const colors = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6'];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+            },
+            emphasis: {
+                focus: 'self',
+                textStyle: {
+                    textShadowBlur: 10,
+                    textShadowColor: '#333'
+                }
+            },
+            data: []
+        }]
+    };
+    
+    wordcloudChart.setOption(option);
+}
+
+// Update Word Cloud Chart with data
+function updateWordcloudChart() {
+    if (!wordcloudChart || !wordCloudData.length) return;
+    
+    const data = wordCloudData.map(item => ({
+        name: item.word,
+        value: item.frequency
+    }));
+    
+    wordcloudChart.setOption({
+        series: [{
+            data: data
+        }]
+    });
+}
+
+// Initialize Radar Chart
+function initRadarChart() {
+    const chartDom = document.getElementById('radar-chart');
+    if (!chartDom) return;
+    
+    if (radarChart) {
+        radarChart.dispose();
+    }
+    
+    radarChart = echarts.init(chartDom, 'dark');
+    
+    const option = {
+        backgroundColor: 'transparent',
+        title: {
+            text: '亲密度雷达图',
+            left: 'center',
+            textStyle: {
+                color: '#f8fafc',
+                fontSize: 18,
+                fontWeight: 600
+            }
+        },
+        legend: {
+            data: ['亲密度分析'],
+            bottom: 20,
+            textStyle: {
+                color: '#94a3b8'
+            }
+        },
+        radar: {
+            indicator: [
+                { name: '情感因素', max: 40 },
+                { name: '互动频率', max: 30 },
+                { name: '对话流畅', max: 20 },
+                { name: '消息均衡', max: 10 }
+            ],
+            center: ['50%', '55%'],
+            radius: '65%',
+            axisName: {
+                color: '#94a3b8',
+                fontSize: 12
+            },
+            splitArea: {
+                areaStyle: {
+                    color: ['rgba(99, 102, 241, 0.1)', 'rgba(99, 102, 241, 0.05)'],
+                    shadowColor: 'rgba(0, 0, 0, 0.2)',
+                    shadowBlur: 10
+                }
+            },
+            axisLine: {
+                lineStyle: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            },
+            splitLine: {
+                lineStyle: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            }
+        },
+        series: [{
+            name: '亲密度分析',
+            type: 'radar',
+            data: [{
+                value: [0, 0, 0, 0],
+                name: '亲密度分析',
+                areaStyle: {
+                    color: {
+                        type: 'radial',
+                        x: 0.5,
+                        y: 0.5,
+                        r: 0.5,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(99, 102, 241, 0.8)' },
+                            { offset: 1, color: 'rgba(139, 92, 246, 0.3)' }
+                        ]
+                    }
+                },
+                lineStyle: {
+                    color: '#6366f1',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#6366f1'
+                }
+            }]
+        }]
+    };
+    
+    radarChart.setOption(option);
+}
+
+// Update Radar Chart with data
+function updateRadarChart() {
+    if (!radarChart || !analysisData) return;
+    
+    radarChart.setOption({
+        series: [{
+            data: [{
+                value: [
+                    analysisData.sentiment_factor,
+                    analysisData.frequency_factor,
+                    analysisData.flow_factor,
+                    analysisData.consecutive_factor
+                ],
+                name: '亲密度分析'
+            }]
+        }]
     });
 }
 
