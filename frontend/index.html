@@ -5,35 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SNS - 情感分析聊天应用</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Google Fonts (optional - falls back to system fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons (with fallback to emoji/text) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- ECharts for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- ECharts WordCloud Extension -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+    <!-- Inline icon styles as fallback -->
+    <style>
+        /* Fallback icons when Font Awesome doesn't load */
+        .icon-fallback::before { content: attr(data-icon); }
+        .fa-comments::before { content: "💬"; }
+        .fa-sign-in-alt::before { content: "→"; }
+        .fa-user-plus::before { content: "+"; }
+        .fa-user::before { content: "👤"; }
+        .fa-lock::before { content: "🔒"; }
+        .fa-envelope::before { content: "📧"; }
+        .fa-id-card::before { content: "📋"; }
+        .fa-arrow-right::before { content: "→"; }
+        .fa-sign-out-alt::before { content: "↪"; }
+        .fa-users::before { content: "👥"; }
+        .fa-plus::before { content: "+"; }
+        .fa-chart-pie::before { content: "📊"; }
+        .fa-paper-plane::before { content: "✈"; }
+        .fa-smile::before { content: "😊"; }
+        .fa-heart::before { content: "❤"; }
+        .fa-chart-line::before { content: "📈"; }
+        .fa-cloud::before { content: "☁"; }
+        .fa-magic::before { content: "✨"; }
+        .fa-trophy::before { content: "🏆"; }
+        .fa-sync-alt::before { content: "🔄"; }
+        .fa-crown::before { content: "👑"; }
+        .fa-times::before { content: "✕"; }
+        .fa-check::before { content: "✓"; }
+        .fa-check-double::before { content: "✓✓"; }
+        .fa-chart-bar::before { content: "📊"; }
+        .far.fa-smile::before { content: "☺"; }
+        .fa-user-friends::before { content: "👥"; }
+    </style>
 </head>
 <body>
     <div id="app">
         <!-- Login/Register Section -->
         <div id="auth-section" class="section">
-            <div class="auth-container">
-                <h1>SNS 情感分析聊天</h1>
-                <div class="tabs">
-                    <button class="tab-btn active" onclick="showTab('login')">登录</button>
-                    <button class="tab-btn" onclick="showTab('register')">注册</button>
+            <div class="auth-background">
+                <div class="auth-background-shapes">
+                    <div class="shape shape-1"></div>
+                    <div class="shape shape-2"></div>
+                    <div class="shape shape-3"></div>
                 </div>
-                
-                <!-- Login Form -->
-                <form id="login-form" class="auth-form">
-                    <input type="text" id="login-username" placeholder="用户名" required>
-                    <input type="password" id="login-password" placeholder="密码" required>
-                    <button type="submit">登录</button>
-                </form>
-                
-                <!-- Register Form -->
-                <form id="register-form" class="auth-form hidden">
-                    <input type="text" id="register-username" placeholder="用户名" required>
-                    <input type="email" id="register-email" placeholder="邮箱" required>
-                    <input type="password" id="register-password" placeholder="密码" required>
-                    <input type="text" id="register-fullname" placeholder="全名（可选）">
-                    <button type="submit">注册</button>
-                </form>
-                
-                <p id="auth-message" class="message"></p>
+            </div>
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-logo">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h1>SNS 情感分析聊天</h1>
+                    <p class="auth-subtitle">智能分析 · 实时沟通 · 深度洞察</p>
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="showTab('login')">
+                            <i class="fas fa-sign-in-alt"></i> 登录
+                        </button>
+                        <button class="tab-btn" onclick="showTab('register')">
+                            <i class="fas fa-user-plus"></i> 注册
+                        </button>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <form id="login-form" class="auth-form">
+                        <div class="input-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="login-username" placeholder="用户名" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="login-password" placeholder="密码" required>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-arrow-right"></i> 登录
+                        </button>
+                    </form>
+                    
+                    <!-- Register Form -->
+                    <form id="register-form" class="auth-form hidden">
+                        <div class="input-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="register-username" placeholder="用户名" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="register-email" placeholder="邮箱" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="register-password" placeholder="密码" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-id-card"></i>
+                            <input type="text" id="register-fullname" placeholder="全名（可选）">
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-user-plus"></i> 注册
+                        </button>
+                    </form>
+                    
+                    <p id="auth-message" class="message"></p>
+                </div>
             </div>
         </div>
         
@@ -43,64 +122,194 @@
                 <!-- Sidebar -->
                 <div class="sidebar">
                     <div class="sidebar-header">
-                        <h2>好友列表</h2>
-                        <button id="logout-btn" onclick="logout()">退出</button>
+                        <div class="sidebar-brand">
+                            <i class="fas fa-comments"></i>
+                            <span>SNS</span>
+                        </div>
+                        <button id="logout-btn" onclick="logout()" title="退出登录">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
                     </div>
-                    <div id="friends-list" class="friends-list">
-                        <!-- Friends will be loaded here -->
+                    
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header">
+                            <i class="fas fa-users"></i>
+                            <h3>好友列表</h3>
+                        </div>
+                        <div id="friends-list" class="friends-list">
+                            <!-- Friends will be loaded here -->
+                        </div>
                     </div>
+                    
                     <div class="add-friend">
-                        <input type="number" id="add-friend-id" placeholder="好友ID">
-                        <button onclick="addFriend()">添加好友</button>
+                        <div class="add-friend-header">
+                            <i class="fas fa-user-plus"></i>
+                            <span>添加好友</span>
+                        </div>
+                        <div class="add-friend-form">
+                            <input type="number" id="add-friend-id" placeholder="输入好友ID">
+                            <button onclick="addFriend()">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Chat Area -->
                 <div class="chat-area">
                     <div class="chat-header" id="chat-header">
-                        <h3>选择一个好友开始聊天</h3>
+                        <div class="chat-header-info">
+                            <div class="chat-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="chat-header-text">
+                                <h3>选择一个好友开始聊天</h3>
+                                <span class="chat-status">离线</span>
+                            </div>
+                        </div>
+                        <div class="chat-header-actions">
+                            <button class="btn-icon" onclick="openVisualization()" title="查看词云和雷达图" id="viz-btn" disabled>
+                                <i class="fas fa-chart-pie"></i>
+                            </button>
+                        </div>
                     </div>
                     <div id="messages" class="messages">
-                        <!-- Messages will appear here -->
+                        <div class="messages-empty">
+                            <i class="fas fa-comments"></i>
+                            <p>选择好友开始聊天</p>
+                        </div>
                     </div>
                     <div class="chat-input">
-                        <input type="text" id="message-input" placeholder="输入消息..." disabled>
-                        <button id="send-btn" onclick="sendMessage()" disabled>发送</button>
+                        <div class="chat-input-wrapper">
+                            <button class="btn-emoji" title="表情">
+                                <i class="far fa-smile"></i>
+                            </button>
+                            <input type="text" id="message-input" placeholder="输入消息..." disabled>
+                            <button id="send-btn" onclick="sendMessage()" disabled class="btn-send">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Analysis Panel -->
                 <div class="analysis-panel">
-                    <h3>数据分析</h3>
-                    <div id="analysis-content">
-                        <div class="analysis-section">
-                            <h4>亲密度评分</h4>
-                            <div id="intimacy-score" class="score">--</div>
-                        </div>
-                        <div class="analysis-section">
-                            <h4>情感因素</h4>
-                            <div id="sentiment-factor" class="factor">--</div>
-                        </div>
-                        <div class="analysis-section">
-                            <h4>互动频率</h4>
-                            <div id="frequency-factor" class="factor">--</div>
-                        </div>
-                        <div class="analysis-section">
-                            <h4>高频词汇</h4>
-                            <div id="word-cloud" class="word-cloud">
-                                <!-- Word cloud will appear here -->
-                            </div>
-                        </div>
-                        <button onclick="analyzeChat()">分析聊天</button>
+                    <div class="panel-header">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>数据分析</h3>
                     </div>
                     
-                    <h3>好友排行榜</h3>
-                    <div id="rankings-content">
-                        <button onclick="loadRankings()">加载排行榜</button>
+                    <div id="analysis-content" class="panel-content">
+                        <div class="analysis-card intimacy-card">
+                            <div class="card-header">
+                                <i class="fas fa-heart"></i>
+                                <span>亲密度评分</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="intimacy-score" class="score-circle">
+                                    <span class="score-value">--</span>
+                                    <span class="score-label">分</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-grid">
+                            <div class="analysis-card mini-card">
+                                <div class="mini-card-icon sentiment-icon">
+                                    <i class="fas fa-smile"></i>
+                                </div>
+                                <div class="mini-card-content">
+                                    <span class="mini-card-label">情感因素</span>
+                                    <span id="sentiment-factor" class="mini-card-value">--</span>
+                                </div>
+                            </div>
+                            <div class="analysis-card mini-card">
+                                <div class="mini-card-icon frequency-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="mini-card-content">
+                                    <span class="mini-card-label">互动频率</span>
+                                    <span id="frequency-factor" class="mini-card-value">--</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <i class="fas fa-cloud"></i>
+                                <span>高频词汇</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="word-cloud" class="word-cloud">
+                                    <div class="empty-state">
+                                        <i class="fas fa-cloud"></i>
+                                        <span>暂无数据</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn-analyze" onclick="analyzeChat()">
+                            <i class="fas fa-magic"></i> 分析聊天
+                        </button>
+                    </div>
+                    
+                    <div class="panel-divider"></div>
+                    
+                    <div class="panel-header">
+                        <i class="fas fa-trophy"></i>
+                        <h3>好友排行榜</h3>
+                    </div>
+                    <div id="rankings-content" class="panel-content">
+                        <button class="btn-secondary" onclick="loadRankings()">
+                            <i class="fas fa-sync-alt"></i> 加载排行榜
+                        </button>
                         <div id="rankings-list" class="rankings-list">
-                            <!-- Rankings will appear here -->
+                            <div class="empty-state">
+                                <i class="fas fa-crown"></i>
+                                <span>点击按钮加载排行</span>
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visualization Modal -->
+        <div id="viz-modal" class="modal hidden">
+            <div class="modal-overlay" onclick="closeVisualization()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-chart-pie"></i> 数据可视化</h2>
+                    <button class="modal-close" onclick="closeVisualization()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="viz-tabs">
+                        <button class="viz-tab active" onclick="switchVizTab('wordcloud')">
+                            <i class="fas fa-cloud"></i> 词语云图
+                        </button>
+                        <button class="viz-tab" onclick="switchVizTab('radar')">
+                            <i class="fas fa-chart-line"></i> 雷达图
+                        </button>
+                    </div>
+                    <div class="viz-content">
+                        <div id="viz-wordcloud" class="viz-panel">
+                            <div id="wordcloud-chart" class="chart-container"></div>
+                        </div>
+                        <div id="viz-radar" class="viz-panel hidden">
+                            <div id="radar-chart" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeVisualization()">
+                        <i class="fas fa-times"></i> 关闭
+                    </button>
+                    <button class="btn-primary" onclick="refreshVisualization()">
+                        <i class="fas fa-sync-alt"></i> 刷新数据
+                    </button>
                 </div>
             </div>
         </div>

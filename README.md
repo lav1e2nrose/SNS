@@ -130,8 +130,68 @@ SNS/
    HOST=0.0.0.0
    PORT=8000
    SECRET_KEY=your-secret-key-here
-   DASHSCOPE_API_KEY=your-dashscope-api-key  # Optional, for LLM sentiment analysis
+   DASHSCOPE_API_KEY=your-dashscope-api-key  # Required for LLM sentiment analysis
    ```
+
+### Using Qwen API for Sentiment Scoring
+
+The application uses Alibaba's Qwen (通义千问) API through DashScope for intelligent sentiment analysis. Here's how to set it up:
+
+#### Step 1: Get Your API Key
+
+1. Visit [阿里云DashScope控制台](https://dashscope.console.aliyun.com/)
+2. Register or log in to your Alibaba Cloud account
+3. Navigate to "API-KEY管理" (API Key Management)
+4. Create a new API key and copy it
+
+#### Step 2: Configure the API Key
+
+Set the `DASHSCOPE_API_KEY` environment variable:
+
+**Option A: Using .env file (Recommended)**
+```bash
+# Create/edit backend/.env file
+echo "DASHSCOPE_API_KEY=sk-your-api-key-here" >> backend/.env
+```
+
+**Option B: Using environment variable**
+```bash
+# Linux/macOS
+export DASHSCOPE_API_KEY=sk-your-api-key-here
+
+# Windows (PowerShell)
+$env:DASHSCOPE_API_KEY="sk-your-api-key-here"
+```
+
+#### Step 3: Use the Sentiment Analysis API
+
+Once configured, you can use the sentiment analysis endpoint:
+
+```bash
+# Analyze sentiment of a text message
+curl -X POST "http://localhost:8000/api/v1/analysis/sentiment" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "今天天气真好，我很开心！"}'
+```
+
+**Response Example:**
+```json
+{
+  "sentiment_score": 0.85,
+  "positive_score": 0.80,
+  "negative_score": 0.05,
+  "neutral_score": 0.15
+}
+```
+
+- `sentiment_score`: Overall sentiment from -1 (very negative) to 1 (very positive)
+- `positive_score`: Probability of positive sentiment (0-1)
+- `negative_score`: Probability of negative sentiment (0-1)
+- `neutral_score`: Probability of neutral sentiment (0-1)
+
+#### Automatic Message Scoring
+
+When users send chat messages through WebSocket, the system automatically analyzes sentiment and stores scores with each message. These scores are then used to calculate intimacy ratings between users.
 
 5. **Run the application**
    ```bash
