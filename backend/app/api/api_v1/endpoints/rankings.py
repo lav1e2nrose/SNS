@@ -14,12 +14,18 @@ from backend.app.db.session import get_db
 from backend.app.models.user import User
 from backend.app.models.friendship import Friendship
 from backend.app.models.message import Message
-from backend.app.schemas.ranking import FriendRanking
-
 router = APIRouter()
 
-SCORE_LOG_SCALE = 10.0
-SCORE_SENTIMENT_SCALE = 20.0
+SCORE_LOG_SCALE = 10.0  # scales the impact of message frequency (logarithmic)
+SCORE_SENTIMENT_SCALE = 20.0  # scales the impact of average sentiment
+
+
+def calculate_score(count: int, sentiment: float) -> float:
+    """Calculate capped intimacy-like score for a given day."""
+    return (
+        min(100.0, math.log(count + 1) * SCORE_LOG_SCALE + (sentiment + 1) * SCORE_SENTIMENT_SCALE)
+        if count > 0 else 0.0
+    )
 
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
@@ -49,13 +55,6 @@ def get_top_friends(
     try:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days - 1)
-        
-        def calculate_score(count: int, sentiment: float) -> float:
-            """Calculate capped intimacy-like score for a given day."""
-            return (
-                min(100.0, math.log(count + 1) * SCORE_LOG_SCALE + (sentiment + 1) * SCORE_SENTIMENT_SCALE)
-                if count > 0 else 0.0
-            )
         
         # Query friendships where current user is involved
         # Get friendships where current_user is either user or friend
