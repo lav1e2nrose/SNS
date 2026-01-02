@@ -525,7 +525,8 @@ async function analyzeChat() {
             try {
                 const fallbackScores = [];
                 for (let i = 0; i < fallbackMessages.length; i += FALLBACK_SENTIMENT_BATCH_SIZE) {
-                    const batch = fallbackMessages.slice(i, i + FALLBACK_SENTIMENT_BATCH_SIZE).map(async (text) => {
+                    const batchMessages = fallbackMessages.slice(i, i + FALLBACK_SENTIMENT_BATCH_SIZE);
+                    const batchPromises = batchMessages.map(async (text) => {
                         const trimmed = (text || '').trim();
                         if (!trimmed) return null;
                         try {
@@ -548,7 +549,7 @@ async function analyzeChat() {
                             return null;
                         }
                     });
-                    const results = await Promise.all(batch);
+                    const results = await Promise.all(batchPromises);
                     results.forEach(score => {
                         if (typeof score === 'number') {
                             fallbackScores.push(score);
