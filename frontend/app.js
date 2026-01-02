@@ -513,9 +513,33 @@ async function analyzeChat() {
         }
         
         // Calculate intimacy score
-        const sentimentScores = messages
-            .filter(m => m.sentiment_score !== null)
-            .map(m => m.sentiment_score);
+        let sentimentScores = messages
+            .map(m => m.sentiment_score)
+            .filter(score => typeof score === 'number');
+
+        // Fallback: call sentiment analysis when no stored scores are available
+        if (sentimentScores.length === 0) {
+            try {
+                const sentimentResponse = await fetch(`${API_BASE}/analysis/sentiment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: messageContents.join('\n')
+                    })
+                });
+
+                if (sentimentResponse.ok) {
+                    const sentimentResult = await sentimentResponse.json();
+                    if (typeof sentimentResult.sentiment_score === 'number') {
+                        sentimentScores = [sentimentResult.sentiment_score];
+                    }
+                }
+            } catch (error) {
+                console.error('Sentiment analysis fallback failed:', error);
+            }
+        }
         
         // Count consecutive messages
         const consecutiveMessages = {};
