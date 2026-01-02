@@ -2,8 +2,20 @@
 Ranking schemas for friend ranking and relationship insights.
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+
+
+class ActivityPoint(BaseModel):
+    """Single day activity data point."""
+    date: str = Field(..., description="Date in ISO format")
+    count: int = Field(..., ge=0, description="Message count for the day")
+
+
+class ScorePoint(BaseModel):
+    """Single day score data point."""
+    date: str = Field(..., description="Date in ISO format")
+    score: float = Field(..., ge=0.0, le=100.0, description="Daily intimacy score")
 
 
 class FriendRanking(BaseModel):
@@ -16,6 +28,8 @@ class FriendRanking(BaseModel):
     positive_interactions: int = Field(..., ge=0, description="Count of positive interactions")
     negative_interactions: int = Field(..., ge=0, description="Count of negative interactions")
     last_interaction: Optional[datetime] = Field(None, description="Timestamp of last interaction")
+    activity_trend: List[ActivityPoint] = Field(default_factory=list, description="Recent chat frequency trend")
+    score_trend: List[ScorePoint] = Field(default_factory=list, description="Recent intimacy score trend")
     
     class Config:
         from_attributes = True

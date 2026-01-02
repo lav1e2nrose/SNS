@@ -683,7 +683,7 @@ async function loadRankings() {
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
-        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10`, {
+        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10&days=7`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -755,6 +755,24 @@ function renderRankingsSkeleton(container) {
     `;
 }
 
+function buildTrendSparkline(trend = [], valueKey = 'count') {
+    if (!Array.isArray(trend) || trend.length === 0) {
+        return '<div class="trend-sparkline empty">--</div>';
+    }
+    const values = trend.map(point => {
+        const raw = point && typeof point[valueKey] !== 'undefined' ? point[valueKey] : 0;
+        return Number.isFinite(raw) ? Number(raw) : 0;
+    });
+    const max = Math.max(...values, 1);
+    const bars = values.map((value, idx) => {
+        const height = Math.max(6, Math.round((value / max) * 100));
+        const label = trend[idx] && trend[idx].date ? `${trend[idx].date}` : '';
+        const displayValue = valueKey === 'score' ? value.toFixed(1) : value;
+        return `<div class="trend-bar" style="height:${height}%;" title="${label}：${displayValue}"></div>`;
+    }).join('');
+    return `<div class="trend-sparkline">${bars}</div>`;
+}
+
 // Render rankings with richer details
 function renderRankings(rankings, fromCache = false) {
     const container = document.getElementById('rankings-list');
@@ -791,6 +809,10 @@ function renderRankings(rankings, fromCache = false) {
         const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
         const avatarChar = (friend.username || '?').charAt(0).toUpperCase();
         const sentimentText = positiveRate !== null ? `情感正向 ${positiveRate}%` : '暂无情感数据';
+        const lastActivity = (friend.activity_trend || []).length > 0 ? friend.activity_trend[friend.activity_trend.length - 1].count : 0;
+        const lastScore = (friend.score_trend || []).length > 0 ? friend.score_trend[friend.score_trend.length - 1].score : friend.intimacy_score;
+        const activityTrendHtml = buildTrendSparkline(friend.activity_trend, 'count');
+        const scoreTrendHtml = buildTrendSparkline(friend.score_trend, 'score');
         
         div.innerHTML = `
             <div class="ranking-left">
@@ -818,6 +840,18 @@ function renderRankings(rankings, fromCache = false) {
                 <div class="ranking-meta-row">
                     <span><i class="fas fa-heart"></i> ${sentimentText}</span>
                     <span><i class="fas fa-clock"></i> ${activityText}</span>
+                </div>
+                <div class="ranking-trends">
+                    <div class="trend-row">
+                        <div class="trend-label"><i class="fas fa-chart-line"></i> 近7天频率</div>
+                        ${activityTrendHtml}
+                        <span class="trend-value">${lastActivity} 条/天</span>
+                    </div>
+                    <div class="trend-row">
+                        <div class="trend-label"><i class="fas fa-heart"></i> 近7天得分</div>
+                        ${scoreTrendHtml}
+                        <span class="trend-value">${Number(lastScore || 0).toFixed(1)}</span>
+                    </div>
                 </div>
             </div>
         `;
