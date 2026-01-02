@@ -3,6 +3,7 @@
 
 const API_BASE = window.location.origin + '/api/v1';
 const FALLBACK_SENTIMENT_LIMIT = 50;
+const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
 let token = null;
 let currentUserId = null;
 let currentFriendId = null;
@@ -521,12 +522,12 @@ async function analyzeChat() {
         // Fallback: call sentiment analysis when no stored scores are available
         if (sentimentScores.length === 0) {
             const fallbackMessages = messageContents.slice(-FALLBACK_SENTIMENT_LIMIT);
-            if (fallbackMessages.length) {
-                try {
-                    const fallbackScores = [];
-                    for (const text of fallbackMessages) {
+            try {
+                const fallbackScores = [];
+                for (let i = 0; i < fallbackMessages.length; i += FALLBACK_SENTIMENT_BATCH_SIZE) {
+                    const batch = fallbackMessages.slice(i, i + FALLBACK_SENTIMENT_BATCH_SIZE).map(async (text) => {
                         const trimmed = (text || '').trim();
-                        if (!trimmed) continue;
+                        if (!trimmed) return null;
                         try {
                             const response = await fetch(`${API_BASE}/analysis/sentiment`, {
                                 method: 'POST',
@@ -538,20 +539,25 @@ async function analyzeChat() {
                             });
                             if (!response.ok) {
                                 console.error('Sentiment analysis fallback failed with status:', response.status);
-                                continue;
+                                return null;
                             }
                             const result = await response.json();
-                            if (typeof result.sentiment_score === 'number') {
-                                fallbackScores.push(result.sentiment_score);
-                            }
+                            return typeof result.sentiment_score === 'number' ? result.sentiment_score : null;
                         } catch (innerError) {
                             console.error('Sentiment analysis fallback failed:', innerError);
+                            return null;
                         }
-                    }
-                    sentimentScores = fallbackScores;
-                } catch (error) {
-                    console.error('Sentiment analysis fallback failed:', error);
+                    });
+                    const results = await Promise.all(batch);
+                    results.forEach(score => {
+                        if (typeof score === 'number') {
+                            fallbackScores.push(score);
+                        }
+                    });
                 }
+                sentimentScores = fallbackScores;
+            } catch (error) {
+                console.error('Sentiment analysis fallback failed:', error);
             }
         }
         
