@@ -28,6 +28,11 @@ def calculate_score(count: int, sentiment: float) -> float:
         if count > 0 else 0.0
     )
 
+
+def average_sentiment(sentiments: list) -> float:
+    """Return average sentiment or 0.0 when empty."""
+    return sum(sentiments) / len(sentiments) if sentiments else 0.0
+
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
     limit: int = 10,
@@ -95,6 +100,7 @@ def get_top_friends(
         # Process unique friendships
         friend_rankings = []
         friend_ids = list(friend_data.keys())
+        friend_ids_set = set(friend_ids)
         
         messages_by_friend: Dict[int, list] = defaultdict(list)
         if friend_ids:
@@ -109,7 +115,7 @@ def get_top_friends(
             ).all()
             for msg in all_recent_messages:
                 other_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
-                if other_id in friend_data:
+                if other_id in friend_ids_set:
                     messages_by_friend[other_id].append(msg)
         
         for friend_id, (friendship, friend) in friend_data.items():
@@ -130,7 +136,7 @@ def get_top_friends(
                 day_date = (start_date + timedelta(days=i)).date()
                 count = daily_counts.get(day_date, 0)
                 sentiments = daily_sentiments.get(day_date, [])
-                avg_sentiment_day = sum(sentiments) / len(sentiments) if sentiments else 0.0
+                avg_sentiment_day = average_sentiment(sentiments)
                 daily_score = calculate_score(count, avg_sentiment_day)
                 iso_date = day_date.isoformat()
                 activity_trend.append(ActivityPoint(date=iso_date, count=count))

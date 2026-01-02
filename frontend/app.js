@@ -5,6 +5,9 @@ const API_BASE = window.location.origin + '/api/v1';
 const RANKING_DAYS = 7;
 const FALLBACK_SENTIMENT_LIMIT = 50;
 const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
+const MIN_TREND_BAR_HEIGHT = 6;
+const MAX_TREND_HEIGHT_PERCENTAGE = 100;
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 let token = null;
 let currentUserId = null;
 let currentFriendId = null;
@@ -756,10 +759,6 @@ function renderRankingsSkeleton(container) {
     `;
 }
 
-const MIN_TREND_BAR_HEIGHT = 6;
-const MAX_TREND_HEIGHT_PERCENTAGE = 100;
-const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-
 /**
  * Generate a compact bar sparkline HTML from trend data.
  * @param {Array<{date?: string, [key: string]: number}>} trend - ordered trend points
@@ -770,10 +769,7 @@ function buildTrendSparkline(trend = [], valueKey = 'count') {
     if (!Array.isArray(trend) || trend.length === 0) {
         return '<div class="trend-sparkline empty">--</div>';
     }
-    const values = trend.map(point => {
-        const raw = point && typeof point[valueKey] !== 'undefined' ? point[valueKey] : 0;
-        return Number.isFinite(raw) ? Number(raw) : 0;
-    });
+    const values = trend.map(point => toNumericTrendValue(point, valueKey));
     const max = Math.max(...values);
     if (!Number.isFinite(max) || max === 0) {
         return '<div class="trend-sparkline empty">--</div>';
@@ -803,6 +799,11 @@ function calculateTrendHeight(value, max) {
 function formatTrendValue(value, valueKey) {
     if (valueKey === 'score' && Number.isFinite(value)) return value.toFixed(1);
     return value;
+}
+
+function toNumericTrendValue(point, key) {
+    const raw = point && typeof point[key] !== 'undefined' ? point[key] : 0;
+    return Number.isFinite(raw) ? Number(raw) : 0;
 }
 
 // Render rankings with richer details
