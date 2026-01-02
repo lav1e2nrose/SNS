@@ -519,6 +519,7 @@ async function analyzeChat() {
 
         // Fallback: call sentiment analysis when no stored scores are available
         if (sentimentScores.length === 0) {
+            const fallbackMessages = messageContents.slice(-50);
             try {
                 const sentimentResponse = await fetch(`${API_BASE}/analysis/sentiment`, {
                     method: 'POST',
@@ -526,7 +527,7 @@ async function analyzeChat() {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        text: messageContents.join('\n')
+                        text: fallbackMessages.join('\n')
                     })
                 });
 
