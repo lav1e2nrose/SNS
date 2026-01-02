@@ -755,6 +755,21 @@ function renderRankingsSkeleton(container) {
     `;
 }
 
+const MIN_TREND_BAR_HEIGHT = 6;
+const MAX_TREND_HEIGHT_PERCENT = 100;
+
+/**
+ * Generate a compact bar sparkline HTML from trend data.
+ * @param {Array<{date?: string, [key: string]: number}>} trend - ordered trend points
+ * @param {string} valueKey - key to read numeric value (e.g., 'count' or 'score')
+ * @returns {string} HTML string for sparkline
+ */
+function escapeTrendText(text) {
+    const div = document.createElement('div');
+    div.textContent = String(text ?? '');
+    return div.innerHTML;
+}
+
 function buildTrendSparkline(trend = [], valueKey = 'count') {
     if (!Array.isArray(trend) || trend.length === 0) {
         return '<div class="trend-sparkline empty">--</div>';
@@ -763,14 +778,29 @@ function buildTrendSparkline(trend = [], valueKey = 'count') {
         const raw = point && typeof point[valueKey] !== 'undefined' ? point[valueKey] : 0;
         return Number.isFinite(raw) ? Number(raw) : 0;
     });
-    const max = Math.max(...values, 1);
+    const max = Math.max(...values);
+    if (!Number.isFinite(max) || max === 0) {
+        return '<div class="trend-sparkline empty">--</div>';
+    }
     const bars = values.map((value, idx) => {
-        const height = Math.max(6, Math.round((value / max) * 100));
+        const height = calculateTrendHeight(value, max);
         const label = trend[idx] && trend[idx].date ? `${trend[idx].date}` : '';
         const displayValue = valueKey === 'score' ? value.toFixed(1) : value;
-        return `<div class="trend-bar" style="height:${height}%;" title="${label}：${displayValue}"></div>`;
+        return `<div class="trend-bar" style="height:${height}%;" title="${escapeTrendText(label)}：${escapeTrendText(displayValue)}"></div>`;
     }).join('');
     return `<div class="trend-sparkline">${bars}</div>`;
+}
+
+function getLastTrendValue(trend = [], key, fallback = 0) {
+    if (!Array.isArray(trend) || trend.length === 0) return fallback;
+    const last = trend[trend.length - 1];
+    const value = last && typeof last[key] !== 'undefined' ? last[key] : fallback;
+    return Number.isFinite(value) ? value : fallback;
+}
+
+function calculateTrendHeight(value, max) {
+    if (!Number.isFinite(value) || max <= 0) return MIN_TREND_BAR_HEIGHT;
+    return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENT));
 }
 
 // Render rankings with richer details
@@ -809,8 +839,8 @@ function renderRankings(rankings, fromCache = false) {
         const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
         const avatarChar = (friend.username || '?').charAt(0).toUpperCase();
         const sentimentText = positiveRate !== null ? `情感正向 ${positiveRate}%` : '暂无情感数据';
-        const lastActivity = (friend.activity_trend || []).length > 0 ? friend.activity_trend[friend.activity_trend.length - 1].count : 0;
-        const lastScore = (friend.score_trend || []).length > 0 ? friend.score_trend[friend.score_trend.length - 1].score : friend.intimacy_score;
+        const lastActivity = getLastTrendValue(friend.activity_trend, 'count', 0);
+        const lastScore = getLastTrendValue(friend.score_trend, 'score', friend.intimacy_score);
         const activityTrendHtml = buildTrendSparkline(friend.activity_trend, 'count');
         const scoreTrendHtml = buildTrendSparkline(friend.score_trend, 'score');
         

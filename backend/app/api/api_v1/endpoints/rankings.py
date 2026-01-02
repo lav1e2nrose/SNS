@@ -1,13 +1,14 @@
 """
 Rankings endpoints for friend ranking and relationship insights.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List, Dict
 from collections import defaultdict
 import math
 from datetime import datetime, timedelta, timezone
+from backend.app.schemas.ranking import FriendRanking, ActivityPoint, ScorePoint
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -17,11 +18,13 @@ from backend.app.schemas.ranking import FriendRanking
 
 router = APIRouter()
 
+SCORE_LOG_SCALE = 10.0
+SCORE_SENTIMENT_SCALE = 20.0
 
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
     limit: int = 10,
-    days: int = 7,
+    days: int = Query(7, ge=1, le=30),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -44,9 +47,15 @@ def get_top_friends(
         HTTPException: If query fails
     """
     try:
-        days = max(1, min(days, 30))
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days - 1)
+        
+        def calculate_score(count: int, sentiment: float) -> float:
+            """Calculate capped intimacy-like score for a given day."""
+            return (
+                min(100.0, math.log(count + 1) * SCORE_LOG_SCALE + (sentiment + 1) * SCORE_SENTIMENT_SCALE)
+                if count > 0 else 0.0
+            )
         
         # Query friendships where current user is involved
         # Get friendships where current_user is either user or friend
@@ -92,6 +101,7 @@ def get_top_friends(
                 ) | (
                     (Message.sender_id == friend.id) & (Message.receiver_id == current_user.id)
                 ),
+                Message.created_at.isnot(None),
                 Message.created_at >= start_date
             ).all()
             
@@ -99,22 +109,24 @@ def get_top_friends(
             daily_sentiments = defaultdict(list)
             
             for msg in recent_messages:
-                msg_date = (msg.created_at or end_date).date()
+                if not msg.created_at:
+                    continue
+                msg_date = msg.created_at.date()
                 daily_counts[msg_date] += 1
                 if msg.sentiment_score is not None:
                     daily_sentiments[msg_date].append(msg.sentiment_score)
             
-            activity_trend = []
-            score_trend = []
+            activity_trend: List[ActivityPoint] = []
+            score_trend: List[ScorePoint] = []
             for i in range(days):
                 day_date = (start_date + timedelta(days=i)).date()
                 count = daily_counts.get(day_date, 0)
                 sentiments = daily_sentiments.get(day_date, [])
                 avg_sentiment_day = sum(sentiments) / len(sentiments) if sentiments else 0.0
-                daily_score = min(100.0, math.log(count + 1) * 10 + (avg_sentiment_day + 1) * 20) if count > 0 else 0.0
+                daily_score = calculate_score(count, avg_sentiment_day)
                 iso_date = day_date.isoformat()
-                activity_trend.append({"date": iso_date, "count": count})
-                score_trend.append({"date": iso_date, "score": round(daily_score, 2)})
+                activity_trend.append(ActivityPoint(date=iso_date, count=count))
+                score_trend.append(ScorePoint(date=iso_date, score=round(daily_score, 2)))
             
             # Get last message timestamp
             last_message = db.query(Message).filter(
