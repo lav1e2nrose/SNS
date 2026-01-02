@@ -7,7 +7,7 @@ from backend.app.models.message import Message
 from backend.app.models.friendship import Friendship
 from backend.app.models.user import User
 from backend.app.core.security import get_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def test_get_top_friends_empty(client, auth_headers, test_user):
@@ -156,8 +156,8 @@ def test_get_top_friends_trend_values(client, auth_headers, test_user, test_user
     db_session.commit()
     db_session.refresh(friendship)
     
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    today = datetime.utcnow()
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    today = datetime.now(timezone.utc)
     
     msg1 = Message(
         sender_id=test_user.id,

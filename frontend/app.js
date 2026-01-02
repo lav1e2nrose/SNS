@@ -758,6 +758,7 @@ function renderRankingsSkeleton(container) {
 
 const MIN_TREND_BAR_HEIGHT = 6;
 const MAX_TREND_HEIGHT_PERCENT = 100;
+const TREND_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 /**
  * Generate a compact bar sparkline HTML from trend data.
@@ -766,9 +767,7 @@ const MAX_TREND_HEIGHT_PERCENT = 100;
  * @returns {string} HTML string for sparkline
  */
 function escapeTrendText(text) {
-    const div = document.createElement('div');
-    div.textContent = String(text ?? '');
-    return div.innerHTML;
+    return String(text ?? '').replace(/[&<>"']/g, (m) => TREND_ESCAPE_MAP[m] || m);
 }
 
 function buildTrendSparkline(trend = [], valueKey = 'count') {
@@ -801,7 +800,6 @@ function getLastTrendValue(trend = [], key, fallback = 0) {
 
 function calculateTrendHeight(value, max) {
     if (!Number.isFinite(value) || max <= 0) return 0;
-    if (value === 0) return 0;
     return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENT));
 }
 
