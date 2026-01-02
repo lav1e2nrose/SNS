@@ -261,9 +261,15 @@
                         <h3>好友排行榜</h3>
                     </div>
                     <div id="rankings-content" class="panel-content">
-                        <button class="btn-secondary" onclick="loadRankings()">
-                            <i class="fas fa-sync-alt"></i> 加载排行榜
-                        </button>
+                        <div class="rankings-toolbar">
+                            <div id="rankings-status" class="rankings-status">
+                                <span class="status-dot status-idle"></span>
+                                <span class="status-label">尚未加载</span>
+                            </div>
+                            <button id="rankings-refresh" class="btn-secondary" onclick="loadRankings()">
+                                <i class="fas fa-sync-alt"></i> 刷新排行榜
+                            </button>
+                        </div>
                         <div id="rankings-list" class="rankings-list">
                             <div class="empty-state">
                                 <i class="fas fa-crown"></i>

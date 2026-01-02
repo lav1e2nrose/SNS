@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (token) {
         showMainSection();
         loadFriends();
+        loadRankings();
     }
     
     // Setup form handlers
@@ -92,6 +93,7 @@ async function handleLogin(e) {
             setTimeout(() => {
                 showMainSection();
                 loadFriends();
+                loadRankings();
             }, 1000);
         } else {
             const error = await response.json();
@@ -272,6 +274,7 @@ async function addFriend() {
         if (response.ok) {
             document.getElementById('add-friend-id').value = '';
             loadFriends();
+            loadRankings();
         } else {
             const error = await response.json();
             alert(error.detail || '添加好友失败');
@@ -662,7 +665,7 @@ function renderWordCloud(words) {
 // Load rankings with better UX states
 async function loadRankings() {
     const container = document.getElementById('rankings-list');
-    const button = document.querySelector('#rankings-content .btn-secondary');
+    const button = document.getElementById('rankings-refresh');
     
     if (!token) {
         container.innerHTML = `
@@ -671,11 +674,13 @@ async function loadRankings() {
                 <span>请先登录后再查看排行榜</span>
             </div>
         `;
+        updateRankingsStatus('请先登录后再查看排行榜', 'error');
         return;
     }
     
     setRankingsLoading(button, true);
     renderRankingsSkeleton(container);
+    updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
         const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10`, {
@@ -690,12 +695,16 @@ async function loadRankings() {
         }
         
         const rankings = await response.json();
-        rankingsCache = rankings;
-        renderRankings(rankings);
+        rankingsCache = Array.isArray(rankings) ? rankings : [];
+        renderRankings(rankingsCache);
+        
+        const updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        updateRankingsStatus(`已更新 · ${rankingsCache.length} 位好友 · ${updatedAt}`, 'success');
     } catch (err) {
         console.error('Failed to load rankings:', err);
         if (rankingsCache.length > 0) {
             renderRankings(rankingsCache, true);
+            updateRankingsStatus('网络异常，已显示缓存数据', 'error');
         } else {
             container.innerHTML = `
                 <div class="empty-state">
@@ -703,6 +712,7 @@ async function loadRankings() {
                     <span>${escapeHtml(err.message || '排行榜加载失败')}</span>
                 </div>
             `;
+            updateRankingsStatus('加载失败，请稍后重试', 'error');
         }
     } finally {
         setRankingsLoading(button, false);
@@ -713,9 +723,25 @@ function setRankingsLoading(button, isLoading) {
     if (!button) return;
     button.disabled = isLoading;
     if (isLoading) {
-        button.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> 加载中...`;
+        button.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> 刷新中...`;
     } else {
-        button.innerHTML = `<i class="fas fa-sync-alt"></i> 加载排行榜`;
+        button.innerHTML = `<i class="fas fa-sync-alt"></i> 刷新排行榜`;
+    }
+}
+
+function updateRankingsStatus(text, state = 'idle') {
+    const statusEl = document.getElementById('rankings-status');
+    if (!statusEl) return;
+    
+    const labelEl = statusEl.querySelector('.status-label');
+    const dotEl = statusEl.querySelector('.status-dot');
+    
+    if (labelEl) {
+        labelEl.textContent = text;
+    }
+    if (dotEl) {
+        dotEl.classList.remove('status-idle', 'status-loading', 'status-success', 'status-error');
+        dotEl.classList.add(`status-${state}`);
     }
 }
 
@@ -758,26 +784,40 @@ function renderRankings(rankings, fromCache = false) {
         const activityText = friend.last_interaction
             ? formatRelativeTime(friend.last_interaction)
             : '暂无互动记录';
+        const interactionCount = friend.interaction_count || 0;
         
         const positiveTotal = (friend.positive_interactions || 0) + (friend.negative_interactions || 0);
         const positiveRate = positiveTotal > 0 ? Math.round((friend.positive_interactions || 0) / positiveTotal * 100) : null;
         const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
+        const avatarChar = (friend.username || '?').charAt(0).toUpperCase();
+        const sentimentText = positiveRate !== null ? `情感正向 ${positiveRate}%` : '暂无情感数据';
         
         div.innerHTML = `
             <div class="ranking-left">
                 <span class="rank ${index < 3 ? 'rank-top' : ''}">${index + 1}</span>
+                <div class="ranking-avatar">${avatarChar}</div>
                 <div class="name-block">
                     <div class="name">${escapeHtml(friend.username || '未命名')}</div>
                     <div class="meta">
                         <span><i class="fas fa-clock"></i> ${activityText}</span>
-                        ${positiveRate !== null ? `<span><i class="fas fa-smile"></i> 情感正向 ${positiveRate}%</span>` : ''}
+                        <span><i class="fas fa-comments"></i> 互动 ${interactionCount}</span>
+                        <span class="${positiveRate !== null ? 'chip chip-positive' : 'chip chip-muted'}">
+                            <i class="fas fa-smile"></i> ${sentimentText}
+                        </span>
                     </div>
                 </div>
             </div>
             <div class="ranking-right">
-                <div class="score">${friend.intimacy_score.toFixed(1)}</div>
+                <div class="score-chip">
+                    <div class="score">${friend.intimacy_score.toFixed(1)}</div>
+                    <div class="score-label">亲密度</div>
+                </div>
                 <div class="score-bar">
                     <div class="score-fill" style="width: ${scorePercent}%;"></div>
+                </div>
+                <div class="ranking-meta-row">
+                    <span><i class="fas fa-heart"></i> ${sentimentText}</span>
+                    <span><i class="fas fa-clock"></i> ${activityText}</span>
                 </div>
             </div>
         `;
