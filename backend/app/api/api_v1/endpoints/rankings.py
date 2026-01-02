@@ -18,6 +18,7 @@ router = APIRouter()
 
 SCORE_LOG_SCALE = 10.0  # scales the impact of message frequency (logarithmic)
 SCORE_SENTIMENT_SCALE = 20.0  # scales the impact of average sentiment
+SCORE_DECIMAL_PLACES = 2
 
 
 def calculate_score(count: int, sentiment: float) -> float:
@@ -54,7 +55,8 @@ def get_top_friends(
     """
     try:
         end_date = datetime.now(timezone.utc)
-        # Inclusive window covering `days` days ending today (e.g., 7 → today + previous 6)
+        # Inclusive window covering `days` days ending today
+        # Example: days=7 -> includes today plus previous 6 days of history
         start_date = end_date - timedelta(days=days - 1)
         
         # Query friendships where current user is involved
@@ -132,7 +134,7 @@ def get_top_friends(
                 daily_score = calculate_score(count, avg_sentiment_day)
                 iso_date = day_date.isoformat()
                 activity_trend.append(ActivityPoint(date=iso_date, count=count))
-                score_trend.append(ScorePoint(date=iso_date, score=round(daily_score, 2)))
+                score_trend.append(ScorePoint(date=iso_date, score=round(daily_score, SCORE_DECIMAL_PLACES)))
             
             # Get last message timestamp
             last_message = db.query(Message).filter(

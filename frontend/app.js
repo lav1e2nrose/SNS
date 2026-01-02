@@ -781,7 +781,7 @@ function buildTrendSparkline(trend = [], valueKey = 'count') {
     const bars = values.map((value, idx) => {
         const height = calculateTrendHeight(value, max);
         const label = trend[idx] && trend[idx].date ? `${trend[idx].date}` : '';
-        const displayValue = valueKey === 'score' ? value.toFixed(1) : value;
+        const displayValue = formatTrendValue(value, valueKey);
         return `<div class="trend-bar" style="height:${height}%;" title="${escapeHtml(label)}：${escapeHtml(displayValue)}"></div>`;
     }).join('');
     return `<div class="trend-sparkline">${bars}</div>`;
@@ -795,8 +795,14 @@ function getLastTrendValue(trend = [], key, fallback = 0) {
 }
 
 function calculateTrendHeight(value, max) {
-    if (!Number.isFinite(value) || max <= 0) return 0;
+    if (max <= 0) return MIN_TREND_BAR_HEIGHT;
+    if (!Number.isFinite(value)) return 0;
     return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENTAGE));
+}
+
+function formatTrendValue(value, valueKey) {
+    if (valueKey === 'score' && Number.isFinite(value)) return value.toFixed(1);
+    return value;
 }
 
 // Render rankings with richer details
