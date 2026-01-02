@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List
 import json
+import logging
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -14,6 +15,10 @@ from backend.app.models.friendship import Friendship
 from backend.app.schemas.message import MessageResponse
 from backend.app.services.connection_manager import manager
 from backend.app.core.security import decode_access_token
+from backend.app.services.analysis_service import analyze_sentiment_llm
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -82,16 +87,40 @@ async def websocket_endpoint(
             if not content:
                 continue
             
-            # Save message to database with placeholder sentiment scores
+            # Analyze sentiment for the message
+            sentiment_score = None
+            positive_score = None
+            negative_score = None
+            neutral_score = None
+            
+            try:
+                # Call sentiment analysis service
+                logger.info(f"Analyzing sentiment for message: {content[:50]}...")
+                sentiment_result = analyze_sentiment_llm(content)
+                sentiment_score = sentiment_result.sentiment_score
+                positive_score = sentiment_result.positive_score
+                negative_score = sentiment_result.negative_score
+                neutral_score = sentiment_result.neutral_score
+                logger.info(f"Sentiment analysis completed: score={sentiment_score}")
+            except Exception as e:
+                # Log error but don't break the chat flow
+                logger.error(f"Sentiment analysis failed: {e}", exc_info=True)
+                # Set to None to indicate analysis failed (not 0.0 which could be a valid result)
+                sentiment_score = None
+                positive_score = None
+                negative_score = None
+                neutral_score = None
+            
+            # Save message to database with sentiment scores
             message = Message(
                 sender_id=user_id,
                 receiver_id=friend_id,
                 content=content,
                 is_read=False,
-                sentiment_score=0.0,  # Placeholder for Phase 3
-                positive_score=0.0,   # Placeholder for Phase 3
-                negative_score=0.0,   # Placeholder for Phase 3
-                neutral_score=0.0     # Placeholder for Phase 3
+                sentiment_score=sentiment_score,
+                positive_score=positive_score,
+                negative_score=negative_score,
+                neutral_score=neutral_score
             )
             db.add(message)
             db.commit()
@@ -115,7 +144,7 @@ async def websocket_endpoint(
                 friendship.intimacy_score = min(100.0, friendship.intimacy_score + 0.1)
                 db.commit()
             
-            # Prepare response message
+            # Prepare response message with all sentiment fields
             response_data = {
                 "id": message.id,
                 "sender_id": message.sender_id,
@@ -123,7 +152,10 @@ async def websocket_endpoint(
                 "content": message.content,
                 "is_read": message.is_read,
                 "created_at": message.created_at.isoformat(),
-                "sentiment_score": message.sentiment_score
+                "sentiment_score": message.sentiment_score,
+                "positive_score": message.positive_score,
+                "negative_score": message.negative_score,
+                "neutral_score": message.neutral_score
             }
             
             # Send message to friend if they're connected

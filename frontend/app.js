@@ -625,9 +625,27 @@ async function loadRankings() {
         if (response.ok) {
             const rankings = await response.json();
             renderRankings(rankings);
+        } else {
+            // Handle error response
+            const errorData = await response.json().catch(() => ({ detail: 'Failed to load rankings' }));
+            console.error('Failed to load rankings:', errorData);
+            const container = document.getElementById('rankings-list');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>加载失败: ${errorData.detail || 'Unknown error'}</span>
+                </div>
+            `;
         }
     } catch (err) {
         console.error('Failed to load rankings:', err);
+        const container = document.getElementById('rankings-list');
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>网络错误，请重试</span>
+            </div>
+        `;
     }
 }
 
@@ -829,10 +847,18 @@ function initRadarChart() {
                 { name: '消息均衡', max: 10 }
             ],
             center: ['50%', '55%'],
-            radius: '65%',
+            radius: '60%',
             axisName: {
                 color: '#94a3b8',
-                fontSize: 12
+                fontSize: 13,
+                fontWeight: 500,
+                lineHeight: 18,
+                // Add distance between label and axis
+                distance: 8,
+                // Format label to add spacing
+                formatter: function(value, indicator) {
+                    return value;
+                }
             },
             splitArea: {
                 areaStyle: {
