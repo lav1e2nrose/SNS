@@ -102,9 +102,16 @@ async def websocket_endpoint(
                 negative_score = sentiment_result.negative_score
                 neutral_score = sentiment_result.neutral_score
                 logger.info(f"Sentiment analysis completed: score={sentiment_score}")
+            except ValueError as e:
+                # Configuration error (e.g., missing API key or dashscope not installed)
+                logger.warning(f"Sentiment analysis configuration error: {e}")
+                sentiment_score = None
+                positive_score = None
+                negative_score = None
+                neutral_score = None
             except Exception as e:
-                # Log error but don't break the chat flow
-                logger.error(f"Sentiment analysis failed: {e}", exc_info=True)
+                # Other unexpected errors (e.g., network, API failures)
+                logger.error(f"Sentiment analysis failed unexpectedly: {e}", exc_info=True)
                 # Set to None to indicate analysis failed (not 0.0 which could be a valid result)
                 sentiment_score = None
                 positive_score = None

@@ -220,8 +220,8 @@ def test_websocket_chat_with_sentiment_analysis(mock_sentiment, client, auth_tok
 @patch('backend.app.api.api_v1.endpoints.chat.analyze_sentiment_llm')
 def test_websocket_chat_sentiment_analysis_failure(mock_sentiment, client, auth_token, test_user, test_user2, db_session):
     """Test WebSocket chat when sentiment analysis fails gracefully."""
-    # Mock sentiment analysis to raise an exception
-    mock_sentiment.side_effect = ValueError("DASHSCOPE_API_KEY is not configured")
+    # Mock sentiment analysis to raise an exception (could be any error)
+    mock_sentiment.side_effect = ValueError("API configuration error")
     
     # Connect to WebSocket with token
     with client.websocket_connect(
