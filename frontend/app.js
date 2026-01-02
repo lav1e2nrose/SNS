@@ -533,8 +533,11 @@ async function analyzeChat() {
                 if (sentimentResponse.ok) {
                     const sentimentResult = await sentimentResponse.json();
                     if (typeof sentimentResult.sentiment_score === 'number') {
-                        sentimentScores = [sentimentResult.sentiment_score];
+                        const score = sentimentResult.sentiment_score;
+                        sentimentScores = new Array(messageContents.length || 1).fill(score);
                     }
+                } else {
+                    console.error('Sentiment analysis fallback failed with status:', sentimentResponse.status);
                 }
             } catch (error) {
                 console.error('Sentiment analysis fallback failed:', error);
