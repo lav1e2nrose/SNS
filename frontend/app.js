@@ -2,6 +2,7 @@
 // Modern and feature-rich chat application with sentiment analysis
 
 const API_BASE = window.location.origin + '/api/v1';
+const RANKING_DAYS = 7;
 const FALLBACK_SENTIMENT_LIMIT = 50;
 const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
 let token = null;
@@ -683,7 +684,7 @@ async function loadRankings() {
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
-        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10&days=7`, {
+        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10&days=${RANKING_DAYS}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -873,12 +874,12 @@ function renderRankings(rankings, fromCache = false) {
                 </div>
                 <div class="ranking-trends">
                     <div class="trend-row">
-                        <div class="trend-label"><i class="fas fa-chart-line"></i> 近7天频率</div>
+                        <div class="trend-label"><i class="fas fa-chart-line"></i> 近${RANKING_DAYS}天频率</div>
                         ${activityTrendHtml}
                         <span class="trend-value">${lastActivity} 条/天</span>
                     </div>
                     <div class="trend-row">
-                        <div class="trend-label"><i class="fas fa-heart"></i> 近7天得分</div>
+                        <div class="trend-label"><i class="fas fa-heart"></i> 近${RANKING_DAYS}天得分</div>
                         ${scoreTrendHtml}
                         <span class="trend-value">${Number(lastScore || 0).toFixed(1)}</span>
                     </div>

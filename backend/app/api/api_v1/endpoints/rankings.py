@@ -91,19 +91,27 @@ def get_top_friends(
         
         # Process unique friendships
         friend_rankings = []
+        friend_ids = list(friend_data.keys())
         
-        for friend_id, (friendship, friend) in friend_data.items():
-            # Fetch messages in the recent window for trend calculation
-            recent_messages = db.query(Message).filter(
+        messages_by_friend: Dict[int, list] = defaultdict(list)
+        if friend_ids:
+            all_recent_messages = db.query(Message).filter(
                 (
-                    (Message.sender_id == current_user.id) & (Message.receiver_id == friend.id)
+                    (Message.sender_id == current_user.id) & (Message.receiver_id.in_(friend_ids))
                 ) | (
-                    (Message.sender_id == friend.id) & (Message.receiver_id == current_user.id)
+                    (Message.receiver_id == current_user.id) & (Message.sender_id.in_(friend_ids))
                 ),
                 Message.created_at.isnot(None),
                 Message.created_at >= start_date
             ).all()
-            
+            for msg in all_recent_messages:
+                other_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+                if other_id in friend_data:
+                    messages_by_friend[other_id].append(msg)
+        
+        for friend_id, (friendship, friend) in friend_data.items():
+            # Fetch messages in the recent window for trend calculation
+            recent_messages = messages_by_friend.get(friend.id, [])
             daily_counts = defaultdict(int)
             daily_sentiments = defaultdict(list)
             
