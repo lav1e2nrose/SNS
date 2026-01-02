@@ -525,26 +525,31 @@ async function analyzeChat() {
                 return;
             }
             try {
-                const sentimentResponse = await fetch(`${API_BASE}/analysis/sentiment`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        text: fallbackMessages.join('\n')
+                const fallbackScores = await Promise.all(
+                    fallbackMessages.map(async (text) => {
+                        try {
+                            const response = await fetch(`${API_BASE}/analysis/sentiment`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({ text })
+                            });
+                            if (!response.ok) {
+                                console.error('Sentiment analysis fallback failed with status:', response.status);
+                                return null;
+                            }
+                            const result = await response.json();
+                            return typeof result.sentiment_score === 'number' ? result.sentiment_score : null;
+                        } catch (innerError) {
+                            console.error('Sentiment analysis fallback failed:', innerError);
+                            return null;
+                        }
                     })
-                });
+                );
 
-                if (sentimentResponse.ok) {
-                    const sentimentResult = await sentimentResponse.json();
-                    if (typeof sentimentResult.sentiment_score === 'number') {
-                        const score = sentimentResult.sentiment_score;
-                        sentimentScores = fallbackMessages.map(() => score);
-                    }
-                } else {
-                    console.error('Sentiment analysis fallback failed with status:', sentimentResponse.status);
-                }
+                sentimentScores = fallbackScores.filter(score => typeof score === 'number');
             } catch (error) {
                 console.error('Sentiment analysis fallback failed:', error);
             }
