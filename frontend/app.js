@@ -11,6 +11,7 @@ let currentFriendName = null;
 let ws = null;
 let wordCloudData = [];
 let analysisData = null;
+let rankingsCache = [];
 
 // ECharts instances
 let wordcloudChart = null;
@@ -658,8 +659,24 @@ function renderWordCloud(words) {
     });
 }
 
-// Load rankings
+// Load rankings with better UX states
 async function loadRankings() {
+    const container = document.getElementById('rankings-list');
+    const button = document.querySelector('#rankings-content .btn-secondary');
+    
+    if (!token) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>请先登录后再查看排行榜</span>
+            </div>
+        `;
+        return;
+    }
+    
+    setRankingsLoading(button, true);
+    renderRankingsSkeleton(container);
+    
     try {
         const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10`, {
             headers: {
@@ -667,39 +684,57 @@ async function loadRankings() {
             }
         });
         
-        if (response.ok) {
-            const rankings = await response.json();
-            renderRankings(rankings);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: '加载失败' }));
+            throw new Error(errorData.detail || '加载排行榜失败');
+        }
+        
+        const rankings = await response.json();
+        rankingsCache = rankings;
+        renderRankings(rankings);
+    } catch (err) {
+        console.error('Failed to load rankings:', err);
+        if (rankingsCache.length > 0) {
+            renderRankings(rankingsCache, true);
         } else {
-            // Handle error response
-            const errorData = await response.json().catch(() => ({ detail: 'Failed to load rankings' }));
-            console.error('Failed to load rankings:', errorData);
-            const container = document.getElementById('rankings-list');
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <span>加载失败: ${errorData.detail || 'Unknown error'}</span>
+                    <span>${escapeHtml(err.message || '排行榜加载失败')}</span>
                 </div>
             `;
         }
-    } catch (err) {
-        console.error('Failed to load rankings:', err);
-        const container = document.getElementById('rankings-list');
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>网络错误，请重试</span>
-            </div>
-        `;
+    } finally {
+        setRankingsLoading(button, false);
     }
 }
 
-// Render rankings
-function renderRankings(rankings) {
+function setRankingsLoading(button, isLoading) {
+    if (!button) return;
+    button.disabled = isLoading;
+    if (isLoading) {
+        button.innerHTML = `<i class="fas fa-sync-alt fa-spin"></i> 加载中...`;
+    } else {
+        button.innerHTML = `<i class="fas fa-sync-alt"></i> 加载排行榜`;
+    }
+}
+
+function renderRankingsSkeleton(container) {
+    container.innerHTML = `
+        <div class="ranking-skeleton">
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+        </div>
+    `;
+}
+
+// Render rankings with richer details
+function renderRankings(rankings, fromCache = false) {
     const container = document.getElementById('rankings-list');
     container.innerHTML = '';
     
-    if (rankings.length === 0) {
+    if (!rankings || rankings.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-crown"></i>
@@ -709,16 +744,68 @@ function renderRankings(rankings) {
         return;
     }
     
+    if (fromCache) {
+        const cachedHint = document.createElement('div');
+        cachedHint.className = 'ranking-hint';
+        cachedHint.innerHTML = `<i class="fas fa-database"></i> 显示缓存数据（请稍后重试刷新）`;
+        container.appendChild(cachedHint);
+    }
+    
     rankings.forEach((friend, index) => {
         const div = document.createElement('div');
         div.className = 'ranking-item';
+        
+        const activityText = friend.last_interaction
+            ? formatRelativeTime(friend.last_interaction)
+            : '暂无互动记录';
+        
+        const positiveTotal = (friend.positive_interactions || 0) + (friend.negative_interactions || 0);
+        const positiveRate = positiveTotal > 0 ? Math.round((friend.positive_interactions || 0) / positiveTotal * 100) : null;
+        const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
+        
         div.innerHTML = `
-            <span class="rank">${index + 1}</span>
-            <span class="name">${escapeHtml(friend.username)}</span>
-            <span class="score">${friend.intimacy_score.toFixed(1)}</span>
+            <div class="ranking-left">
+                <span class="rank ${index < 3 ? 'rank-top' : ''}">${index + 1}</span>
+                <div class="name-block">
+                    <div class="name">${escapeHtml(friend.username || '未命名')}</div>
+                    <div class="meta">
+                        <span><i class="fas fa-clock"></i> ${activityText}</span>
+                        ${positiveRate !== null ? `<span><i class="fas fa-smile"></i> 情感正向 ${positiveRate}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="ranking-right">
+                <div class="score">${friend.intimacy_score.toFixed(1)}</div>
+                <div class="score-bar">
+                    <div class="score-fill" style="width: ${scorePercent}%;"></div>
+                </div>
+            </div>
         `;
         container.appendChild(div);
     });
+}
+
+function formatRelativeTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    if (isNaN(diffMs)) return '时间未知';
+    
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes} 分钟前`;
+    
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} 小时前`;
+    
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} 天前`;
+    
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} 个月前`;
+    
+    const years = Math.floor(months / 12);
+    return `${years} 年前`;
 }
 
 // ===============================================
@@ -877,77 +964,78 @@ function initRadarChart() {
                 fontWeight: 600
             }
         },
-        legend: {
-            data: ['亲密度分析'],
-            bottom: 20,
-            textStyle: {
-                color: '#94a3b8'
-            }
+        tooltip: {
+            trigger: 'item',
+            borderRadius: 8,
+            backgroundColor: 'rgba(15,23,42,0.9)',
+            borderColor: 'rgba(99,102,241,0.4)',
+            textStyle: { color: '#e2e8f0' }
         },
         radar: {
+            shape: 'circle',
+            splitNumber: 5,
             indicator: [
-                { name: '情感因素', max: 40 },
-                { name: '互动频率', max: 30 },
-                { name: '对话流畅', max: 20 },
-                { name: '消息均衡', max: 10 }
+                { name: '情感因素', max: 100 },
+                { name: '互动频率', max: 100 },
+                { name: '对话流畅', max: 100 },
+                { name: '消息均衡', max: 100 }
             ],
             center: ['50%', '55%'],
-            radius: '60%',
+            radius: '65%',
             axisName: {
-                color: '#94a3b8',
+                color: '#e2e8f0',
                 fontSize: 13,
                 fontWeight: 500,
                 lineHeight: 18,
-                // Add distance between label and axis
-                distance: 8,
-                // Format label to add spacing
-                formatter: function(value, indicator) {
-                    return value;
-                }
+                distance: 10
             },
             splitArea: {
                 areaStyle: {
-                    color: ['rgba(99, 102, 241, 0.1)', 'rgba(99, 102, 241, 0.05)'],
-                    shadowColor: 'rgba(0, 0, 0, 0.2)',
-                    shadowBlur: 10
+                    color: ['rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.06)'],
+                    shadowColor: 'rgba(0, 0, 0, 0.25)',
+                    shadowBlur: 14
                 }
             },
             axisLine: {
                 lineStyle: {
-                    color: 'rgba(255, 255, 255, 0.1)'
+                    color: 'rgba(255, 255, 255, 0.12)'
                 }
             },
             splitLine: {
                 lineStyle: {
-                    color: 'rgba(255, 255, 255, 0.1)'
+                    color: 'rgba(255, 255, 255, 0.12)'
                 }
             }
         },
         series: [{
             name: '亲密度分析',
             type: 'radar',
+            symbol: 'circle',
+            symbolSize: 6,
+            areaStyle: {
+                color: {
+                    type: 'radial',
+                    x: 0.5,
+                    y: 0.5,
+                    r: 0.8,
+                    colorStops: [
+                        { offset: 0, color: 'rgba(99, 102, 241, 0.8)' },
+                        { offset: 1, color: 'rgba(20, 184, 166, 0.25)' }
+                    ]
+                }
+            },
+            lineStyle: {
+                color: '#22d3ee',
+                width: 2.5
+            },
+            itemStyle: {
+                color: '#22d3ee',
+                shadowBlur: 8,
+                shadowColor: 'rgba(34, 211, 238, 0.6)'
+            },
             data: [{
                 value: [0, 0, 0, 0],
-                name: '亲密度分析',
-                areaStyle: {
-                    color: {
-                        type: 'radial',
-                        x: 0.5,
-                        y: 0.5,
-                        r: 0.5,
-                        colorStops: [
-                            { offset: 0, color: 'rgba(99, 102, 241, 0.8)' },
-                            { offset: 1, color: 'rgba(139, 92, 246, 0.3)' }
-                        ]
-                    }
-                },
-                lineStyle: {
-                    color: '#6366f1',
-                    width: 2
-                },
-                itemStyle: {
-                    color: '#6366f1'
-                }
+                name: '亲密度分析'
             }]
         }]
     };
@@ -959,15 +1047,27 @@ function initRadarChart() {
 function updateRadarChart() {
     if (!radarChart || !analysisData) return;
     
+    const factors = [
+        { name: '情感因素', value: analysisData.sentiment_factor, max: 40 },
+        { name: '互动频率', value: analysisData.frequency_factor, max: 30 },
+        { name: '对话流畅', value: analysisData.flow_factor, max: 20 },
+        { name: '消息均衡', value: analysisData.consecutive_factor, max: 10 }
+    ];
+    
+    const normalizedValues = factors.map(f => Math.min(100, Math.max(0, (f.value / f.max) * 100)));
+    
     radarChart.setOption({
+        tooltip: {
+            formatter: () => {
+                return factors.map(f => `${f.name}: ${f.value.toFixed(1)} / ${f.max}`).join('<br/>');
+            }
+        },
+        radar: {
+            indicator: factors.map(f => ({ name: f.name, max: 100 }))
+        },
         series: [{
             data: [{
-                value: [
-                    analysisData.sentiment_factor,
-                    analysisData.frequency_factor,
-                    analysisData.flow_factor,
-                    analysisData.consecutive_factor
-                ],
+                value: normalizedValues,
                 name: '亲密度分析'
             }]
         }]
