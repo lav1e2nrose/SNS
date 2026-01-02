@@ -2,6 +2,7 @@
 // Modern and feature-rich chat application with sentiment analysis
 
 const API_BASE = window.location.origin + '/api/v1';
+const FALLBACK_SENTIMENT_LIMIT = 50;
 let token = null;
 let currentUserId = null;
 let currentFriendId = null;
@@ -519,7 +520,7 @@ async function analyzeChat() {
 
         // Fallback: call sentiment analysis when no stored scores are available
         if (sentimentScores.length === 0) {
-            const fallbackMessages = messageContents.slice(-50);
+            const fallbackMessages = messageContents.slice(-FALLBACK_SENTIMENT_LIMIT);
             try {
                 const sentimentResponse = await fetch(`${API_BASE}/analysis/sentiment`, {
                     method: 'POST',
@@ -535,7 +536,7 @@ async function analyzeChat() {
                     const sentimentResult = await sentimentResponse.json();
                     if (typeof sentimentResult.sentiment_score === 'number') {
                         const score = sentimentResult.sentiment_score;
-                        sentimentScores = new Array(messageContents.length).fill(score);
+                        sentimentScores = [score];
                     }
                 } else {
                     console.error('Sentiment analysis fallback failed with status:', sentimentResponse.status);
