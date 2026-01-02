@@ -757,8 +757,8 @@ function renderRankingsSkeleton(container) {
 }
 
 const MIN_TREND_BAR_HEIGHT = 6;
-const MAX_TREND_HEIGHT_PERCENT = 100;
-const TREND_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const MAX_TREND_HEIGHT_PERCENTAGE = 100;
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 /**
  * Generate a compact bar sparkline HTML from trend data.
@@ -766,10 +766,6 @@ const TREND_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
  * @param {string} valueKey - key to read numeric value (e.g., 'count' or 'score')
  * @returns {string} HTML string for sparkline
  */
-function escapeTrendText(text) {
-    return String(text ?? '').replace(/[&<>"']/g, (m) => TREND_ESCAPE_MAP[m] || m);
-}
-
 function buildTrendSparkline(trend = [], valueKey = 'count') {
     if (!Array.isArray(trend) || trend.length === 0) {
         return '<div class="trend-sparkline empty">--</div>';
@@ -786,7 +782,7 @@ function buildTrendSparkline(trend = [], valueKey = 'count') {
         const height = calculateTrendHeight(value, max);
         const label = trend[idx] && trend[idx].date ? `${trend[idx].date}` : '';
         const displayValue = valueKey === 'score' ? value.toFixed(1) : value;
-        return `<div class="trend-bar" style="height:${height}%;" title="${escapeTrendText(label)}：${escapeTrendText(displayValue)}"></div>`;
+        return `<div class="trend-bar" style="height:${height}%;" title="${escapeHtml(label)}：${escapeHtml(displayValue)}"></div>`;
     }).join('');
     return `<div class="trend-sparkline">${bars}</div>`;
 }
@@ -800,7 +796,7 @@ function getLastTrendValue(trend = [], key, fallback = 0) {
 
 function calculateTrendHeight(value, max) {
     if (!Number.isFinite(value) || max <= 0) return 0;
-    return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENT));
+    return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENTAGE));
 }
 
 // Render rankings with richer details
@@ -1180,7 +1176,5 @@ function updateRadarChart() {
 
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text ?? '').replace(/[&<>"']/g, (m) => HTML_ESCAPE_MAP[m] || m);
 }

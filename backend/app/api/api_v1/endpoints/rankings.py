@@ -54,7 +54,7 @@ def get_top_friends(
     """
     try:
         end_date = datetime.now(timezone.utc)
-        # Inclusive window: today plus previous (days-1) days
+        # Inclusive window covering `days` days ending today (e.g., 7 → today + previous 6)
         start_date = end_date - timedelta(days=days - 1)
         
         # Query friendships where current user is involved
