@@ -515,8 +515,8 @@ async function analyzeChat() {
         
         // Calculate intimacy score
         let sentimentScores = messages
-            .map(m => m.sentiment_score)
-            .filter(score => typeof score === 'number');
+            .filter(m => typeof m.sentiment_score === 'number')
+            .map(m => m.sentiment_score);
 
         // Fallback: call sentiment analysis when no stored scores are available
         if (sentimentScores.length === 0) {
@@ -540,7 +540,7 @@ async function analyzeChat() {
                     const sentimentResult = await sentimentResponse.json();
                     if (typeof sentimentResult.sentiment_score === 'number') {
                         const score = sentimentResult.sentiment_score;
-                        sentimentScores = [score];
+                        sentimentScores = fallbackMessages.map(() => score);
                     }
                 } else {
                     console.error('Sentiment analysis fallback failed with status:', sentimentResponse.status);
