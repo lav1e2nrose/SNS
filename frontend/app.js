@@ -800,7 +800,8 @@ function getLastTrendValue(trend = [], key, fallback = 0) {
 }
 
 function calculateTrendHeight(value, max) {
-    if (!Number.isFinite(value) || max <= 0) return MIN_TREND_BAR_HEIGHT;
+    if (!Number.isFinite(value) || max <= 0) return 0;
+    if (value === 0) return 0;
     return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENT));
 }
 

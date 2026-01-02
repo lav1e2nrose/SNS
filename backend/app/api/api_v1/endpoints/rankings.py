@@ -54,6 +54,7 @@ def get_top_friends(
     """
     try:
         end_date = datetime.now(timezone.utc)
+        # Inclusive window: today plus previous (days-1) days
         start_date = end_date - timedelta(days=days - 1)
         
         # Query friendships where current user is involved
@@ -116,8 +117,6 @@ def get_top_friends(
             daily_sentiments = defaultdict(list)
             
             for msg in recent_messages:
-                if not msg.created_at:
-                    continue
                 msg_date = msg.created_at.date()
                 daily_counts[msg_date] += 1
                 if msg.sentiment_score is not None:
