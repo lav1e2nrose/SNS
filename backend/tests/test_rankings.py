@@ -7,6 +7,7 @@ from backend.app.models.message import Message
 from backend.app.models.friendship import Friendship
 from backend.app.models.user import User
 from backend.app.core.security import get_password_hash
+from datetime import datetime, timedelta, timezone
 
 
 def test_get_top_friends_empty(client, auth_headers, test_user):
@@ -43,6 +44,8 @@ def test_get_top_friends_with_data(client, auth_headers, test_user, test_user2, 
     assert len(data) == 1
     assert data[0]["friend_id"] == test_user2.id
     assert data[0]["intimacy_score"] == 50.0
+    assert len(data[0]["activity_trend"]) == 7
+    assert len(data[0]["score_trend"]) == 7
 
 
 def test_get_top_friends_ordered(client, auth_headers, test_user, db_session):
@@ -99,6 +102,8 @@ def test_get_top_friends_ordered(client, auth_headers, test_user, db_session):
     # Higher intimacy score should be first
     assert data[0]["intimacy_score"] == 70.0
     assert data[1]["intimacy_score"] == 30.0
+    assert len(data[0]["activity_trend"]) == 7
+    assert len(data[0]["score_trend"]) == 7
 
 
 def test_get_top_friends_limit(client, auth_headers, test_user, db_session):
@@ -134,3 +139,55 @@ def test_get_top_friends_limit(client, auth_headers, test_user, db_session):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 3
+
+
+def test_get_top_friends_trend_values(client, auth_headers, test_user, test_user2, db_session):
+    """Test that activity and score trends include recent daily data."""
+    friendship = Friendship(
+        user_id=test_user.id,
+        friend_id=test_user2.id,
+        status="accepted",
+        intimacy_score=0.0,
+        interaction_count=2,
+        positive_interactions=1,
+        negative_interactions=1
+    )
+    db_session.add(friendship)
+    db_session.commit()
+    db_session.refresh(friendship)
+    
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    today = datetime.now(timezone.utc)
+    
+    msg1 = Message(
+        sender_id=test_user.id,
+        receiver_id=test_user2.id,
+        content="hello",
+        sentiment_score=0.5,
+        created_at=yesterday
+    )
+    msg2 = Message(
+        sender_id=test_user2.id,
+        receiver_id=test_user.id,
+        content="hi",
+        sentiment_score=-0.2,
+        created_at=today
+    )
+    db_session.add_all([msg1, msg2])
+    db_session.commit()
+    
+    response = client.get(
+        "/api/v1/rankings/top-friends?days=3",
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    activity_trend = data[0]["activity_trend"]
+    score_trend = data[0]["score_trend"]
+    assert len(activity_trend) == 3
+    assert len(score_trend) == 3
+    # Last day should reflect today's message count
+    assert activity_trend[-1]["count"] >= 1
+    # Trend dates should be ISO strings
+    assert "date" in activity_trend[0] and "count" in activity_trend[0]

@@ -2,8 +2,12 @@
 // Modern and feature-rich chat application with sentiment analysis
 
 const API_BASE = window.location.origin + '/api/v1';
+const RANKING_DAYS = 7;
 const FALLBACK_SENTIMENT_LIMIT = 50;
 const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
+const MIN_TREND_BAR_HEIGHT = 6;
+const MAX_TREND_HEIGHT_PERCENTAGE = 100;
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 let token = null;
 let currentUserId = null;
 let currentFriendId = null;
@@ -683,7 +687,7 @@ async function loadRankings() {
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
-        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10`, {
+        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10&days=${RANKING_DAYS}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -755,6 +759,53 @@ function renderRankingsSkeleton(container) {
     `;
 }
 
+/**
+ * Generate a compact bar sparkline HTML from trend data.
+ * @param {Array<{date?: string, [key: string]: number}>} trend - ordered trend points
+ * @param {string} valueKey - key to read numeric value (e.g., 'count' or 'score')
+ * @returns {string} HTML string for sparkline
+ */
+function buildTrendSparkline(trend = [], valueKey = 'count') {
+    if (!Array.isArray(trend) || trend.length === 0) {
+        return '<div class="trend-sparkline empty">--</div>';
+    }
+    const values = trend.map(point => toNumericTrendValue(point, valueKey));
+    const max = Math.max(...values);
+    if (!Number.isFinite(max) || max === 0) {
+        return '<div class="trend-sparkline empty">--</div>';
+    }
+    const bars = values.map((value, idx) => {
+        const height = calculateTrendHeight(value, max);
+        const label = trend[idx] && trend[idx].date ? `${trend[idx].date}` : '';
+        const displayValue = formatTrendValue(value, valueKey);
+        return `<div class="trend-bar" style="height:${height}%;" title="${escapeHtml(label)}：${escapeHtml(displayValue)}"></div>`;
+    }).join('');
+    return `<div class="trend-sparkline">${bars}</div>`;
+}
+
+function getLastTrendValue(trend = [], key, fallback = 0) {
+    if (!Array.isArray(trend) || trend.length === 0) return fallback;
+    const last = trend[trend.length - 1];
+    const value = last && typeof last[key] !== 'undefined' ? last[key] : fallback;
+    return Number.isFinite(value) ? value : fallback;
+}
+
+function calculateTrendHeight(value, max) {
+    if (max <= 0) return MIN_TREND_BAR_HEIGHT;
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(MIN_TREND_BAR_HEIGHT, Math.round((value / max) * MAX_TREND_HEIGHT_PERCENTAGE));
+}
+
+function formatTrendValue(value, valueKey) {
+    if (valueKey === 'score' && Number.isFinite(value)) return value.toFixed(1);
+    return value;
+}
+
+function toNumericTrendValue(point, key) {
+    const raw = point && typeof point[key] !== 'undefined' ? point[key] : 0;
+    return Number.isFinite(raw) ? Number(raw) : 0;
+}
+
 // Render rankings with richer details
 function renderRankings(rankings, fromCache = false) {
     const container = document.getElementById('rankings-list');
@@ -791,6 +842,10 @@ function renderRankings(rankings, fromCache = false) {
         const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
         const avatarChar = (friend.username || '?').charAt(0).toUpperCase();
         const sentimentText = positiveRate !== null ? `情感正向 ${positiveRate}%` : '暂无情感数据';
+        const lastActivity = getLastTrendValue(friend.activity_trend, 'count', 0);
+        const lastScore = getLastTrendValue(friend.score_trend, 'score', friend.intimacy_score);
+        const activityTrendHtml = buildTrendSparkline(friend.activity_trend, 'count');
+        const scoreTrendHtml = buildTrendSparkline(friend.score_trend, 'score');
         
         div.innerHTML = `
             <div class="ranking-left">
@@ -818,6 +873,18 @@ function renderRankings(rankings, fromCache = false) {
                 <div class="ranking-meta-row">
                     <span><i class="fas fa-heart"></i> ${sentimentText}</span>
                     <span><i class="fas fa-clock"></i> ${activityText}</span>
+                </div>
+                <div class="ranking-trends">
+                    <div class="trend-row">
+                        <div class="trend-label"><i class="fas fa-chart-line"></i> 近${RANKING_DAYS}天频率</div>
+                        ${activityTrendHtml}
+                        <span class="trend-value">${lastActivity} 条/天</span>
+                    </div>
+                    <div class="trend-row">
+                        <div class="trend-label"><i class="fas fa-heart"></i> 近${RANKING_DAYS}天得分</div>
+                        ${scoreTrendHtml}
+                        <span class="trend-value">${Number(lastScore || 0).toFixed(1)}</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -1116,7 +1183,5 @@ function updateRadarChart() {
 
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text ?? '').replace(/[&<>"']/g, (m) => HTML_ESCAPE_MAP[m] || m);
 }
