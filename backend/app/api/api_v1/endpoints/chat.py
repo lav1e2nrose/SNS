@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+INTIMACY_LOG_SCALE = 10.0
+INTIMACY_SENTIMENT_SCALE = 20.0
+
 
 @router.websocket("/ws/{friend_id}")
 async def websocket_endpoint(
@@ -144,22 +147,17 @@ async def websocket_endpoint(
             
             if friendship:
                 # Recalculate friendship stats from persisted messages to keep DB in sync
-                total_messages = db.query(func.count(Message.id)).filter(
+                total_messages, avg_sentiment = db.query(
+                    func.count(Message.id),
+                    func.avg(Message.sentiment_score)
+                ).filter(
                     (
                         (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
                     ) | (
                         (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
                     )
-                ).scalar() or 0
-                
-                avg_sentiment = db.query(func.avg(Message.sentiment_score)).filter(
-                    (
-                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
-                    ) | (
-                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
-                    ),
-                    Message.sentiment_score.isnot(None)
-                ).scalar()
+                ).one()
+                total_messages = total_messages or 0
                 
                 friendship.interaction_count = total_messages
                 # Initialize counters
@@ -177,7 +175,8 @@ async def websocket_endpoint(
                 if total_messages > 0:
                     intimacy_value = min(
                         100.0,
-                        math.log(total_messages + 1) * 10 + (avg_sentiment + 1) * 20
+                        math.log(total_messages + 1) * INTIMACY_LOG_SCALE
+                        + (avg_sentiment + 1) * INTIMACY_SENTIMENT_SCALE
                     )
                 friendship.intimacy_score = round(intimacy_value, 2)
                 db.commit()
