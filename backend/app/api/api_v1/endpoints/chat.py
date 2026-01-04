@@ -23,6 +23,9 @@ from backend.app.core.intimacy_constants import INTIMACY_LOG_SCALE, INTIMACY_SEN
 # Configure logging
 logger = logging.getLogger(__name__)
 
+BATCH_RECALC_FREQUENCY = 5
+RECALC_LOOKBACK_DAYS = 30
+
 router = APIRouter()
 
 
@@ -145,11 +148,11 @@ async def websocket_endpoint(
             ).first()
             
             if friendship:
-                recalc_needed = ((friendship.interaction_count or 0) % 5) == 0
+                recalc_needed = ((friendship.interaction_count or 0) % BATCH_RECALC_FREQUENCY) == 0
                 
                 if recalc_needed:
                     # Recalculate friendship stats from persisted messages to keep DB in sync (batched every 5 msgs)
-                    recalc_since = datetime.now(timezone.utc) - timedelta(days=30)
+                    recalc_since = datetime.now(timezone.utc) - timedelta(days=RECALC_LOOKBACK_DAYS)
                     total_messages, avg_sentiment, pos_count, neg_count = db.query(
                         func.count(Message.id),
                         func.avg(Message.sentiment_score),
