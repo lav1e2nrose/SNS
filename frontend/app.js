@@ -7,6 +7,7 @@ const FALLBACK_SENTIMENT_LIMIT = 50;
 const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
 const MIN_TREND_BAR_HEIGHT = 6;
 const MAX_TREND_HEIGHT_PERCENTAGE = 100;
+const RADAR_LABEL_WRAP_THRESHOLD = 3;
 const INSIGHTS_REFRESH_DELAY = 400;
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 let token = null;
@@ -18,6 +19,13 @@ let wordCloudData = [];
 let analysisData = null;
 let rankingsCache = [];
 let insightsRefreshTimer = null;
+const EMPTY_ANALYSIS_DATA = Object.freeze({
+    intimacy_score: 0,
+    sentiment_factor: 0,
+    frequency_factor: 0,
+    flow_factor: 0,
+    consecutive_factor: 0
+});
 
 // ECharts instances
 let wordcloudChart = null;
@@ -486,13 +494,7 @@ function sendMessage() {
 }
 
 function buildEmptyAnalysisData() {
-    return {
-        intimacy_score: 0,
-        sentiment_factor: 0,
-        frequency_factor: 0,
-        flow_factor: 0,
-        consecutive_factor: 0
-    };
+    return { ...EMPTY_ANALYSIS_DATA };
 }
 
 function renderAnalysisSummary(data) {
@@ -1132,7 +1134,12 @@ function updateWordcloudChart() {
 
 function formatRadarLabel(name = '') {
     const text = String(name || '').trim();
-    if (text.length <= 2) return text;
+    if (text.length <= RADAR_LABEL_WRAP_THRESHOLD) return text;
+    const parts = text.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+        const mid = Math.ceil(parts.length / 2);
+        return `${parts.slice(0, mid).join(' ')}\n${parts.slice(mid).join(' ')}`;
+    }
     const midpoint = Math.ceil(text.length / 2);
     return `${text.slice(0, midpoint)}\n${text.slice(midpoint)}`;
 }
