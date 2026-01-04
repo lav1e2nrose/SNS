@@ -260,21 +260,15 @@
                         <i class="fas fa-trophy"></i>
                         <h3>好友排行榜</h3>
                     </div>
-                    <div id="rankings-content" class="panel-content">
-                        <div class="rankings-toolbar">
-                            <div id="rankings-status" class="rankings-status">
-                                <span class="status-dot status-idle"></span>
-                                <span class="status-label">尚未加载</span>
-                            </div>
-                            <button id="rankings-refresh" class="btn-secondary" onclick="loadRankings()">
-                                <i class="fas fa-sync-alt"></i> 刷新排行榜
+                    <div id="rankings-content" class="panel-content ranking-cta">
+                        <p id="rankings-brief" class="ranking-brief">排行榜将在弹窗中展示，更大更整洁。</p>
+                        <div class="ranking-cta-actions">
+                            <button class="btn-secondary" onclick="loadRankings()">
+                                <i class="fas fa-sync-alt"></i> 刷新数据
                             </button>
-                        </div>
-                        <div id="rankings-list" class="rankings-list">
-                            <div class="empty-state">
-                                <i class="fas fa-crown"></i>
-                                <span>点击按钮加载排行</span>
-                            </div>
+                            <button class="btn-primary" onclick="openRankingsModal()">
+                                <i class="fas fa-trophy"></i> 打开排行榜
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -316,6 +310,36 @@
                     <button class="btn-primary" onclick="refreshVisualization()">
                         <i class="fas fa-sync-alt"></i> 刷新数据
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rankings Modal -->
+        <div id="rankings-modal" class="modal hidden">
+            <div class="modal-overlay" onclick="closeRankingsModal()"></div>
+            <div class="modal-content rankings-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-trophy"></i> 好友排行榜</h2>
+                    <button class="modal-close" onclick="closeRankingsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="rankings-toolbar">
+                        <div id="rankings-status" class="rankings-status">
+                            <span class="status-dot status-idle"></span>
+                            <span class="status-label">尚未加载</span>
+                        </div>
+                        <button id="rankings-refresh" class="btn-secondary" onclick="loadRankings()">
+                            <i class="fas fa-sync-alt"></i> 刷新排行榜
+                        </button>
+                    </div>
+                    <div id="rankings-list" class="rankings-list">
+                        <div class="empty-state">
+                            <i class="fas fa-crown"></i>
+                            <span>点击刷新获取排行</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

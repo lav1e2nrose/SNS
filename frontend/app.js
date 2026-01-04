@@ -809,6 +809,19 @@ async function loadRankings(silent = false, limit = 0) {
     }
 }
 
+function openRankingsModal() {
+    const modal = document.getElementById('rankings-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    loadRankings();
+}
+
+function closeRankingsModal() {
+    const modal = document.getElementById('rankings-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+}
+
 function setRankingsLoading(button, isLoading) {
     if (!button) return;
     button.disabled = isLoading;
@@ -821,6 +834,10 @@ function setRankingsLoading(button, isLoading) {
 
 function updateRankingsStatus(text, state = 'idle') {
     const statusEl = document.getElementById('rankings-status');
+    const briefEl = document.getElementById('rankings-brief');
+    if (briefEl) {
+        briefEl.textContent = text;
+    }
     if (!statusEl) return;
     
     const labelEl = statusEl.querySelector('.status-label');
@@ -876,6 +893,16 @@ function getLastTrendValue(trend = [], key, fallback = 0) {
     return Number.isFinite(value) ? value : fallback;
 }
 
+function getTrendAverage(trend = [], key, precision = 1) {
+    if (!Array.isArray(trend) || trend.length === 0) return 0;
+    const values = trend
+        .map(point => toNumericTrendValue(point, key))
+        .filter(value => Number.isFinite(value));
+    if (values.length === 0) return 0;
+    const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return precision === null ? average : Number(average.toFixed(precision));
+}
+
 function calculateTrendHeight(value, max) {
     if (max <= 0) return MIN_TREND_BAR_HEIGHT;
     if (!Number.isFinite(value)) return 0;
@@ -925,11 +952,12 @@ function renderRankings(rankings, fromCache = false) {
         
         const positiveTotal = (friend.positive_interactions || 0) + (friend.negative_interactions || 0);
         const positiveRate = positiveTotal > 0 ? Math.round((friend.positive_interactions || 0) / positiveTotal * 100) : null;
-        const scorePercent = Math.min(100, Math.max(0, Math.round(friend.intimacy_score)));
+        const intimacyScoreValue = Number(friend.intimacy_score || 0);
+        const scorePercent = Math.min(100, Math.max(0, Math.round(intimacyScoreValue)));
         const avatarChar = (friend.username || '?').charAt(0).toUpperCase();
         const sentimentText = positiveRate !== null ? `情感正向 ${positiveRate}%` : '暂无情感数据';
-        const lastActivity = getLastTrendValue(friend.activity_trend, 'count', 0);
-        const lastScore = getLastTrendValue(friend.score_trend, 'score', friend.intimacy_score);
+        const avgActivity = getTrendAverage(friend.activity_trend, 'count', 1);
+        const avgScore = getTrendAverage(friend.score_trend, 'score', 1);
         const activityTrendHtml = buildTrendSparkline(friend.activity_trend, 'count');
         const scoreTrendHtml = buildTrendSparkline(friend.score_trend, 'score');
         
@@ -950,7 +978,7 @@ function renderRankings(rankings, fromCache = false) {
             </div>
             <div class="ranking-right">
                 <div class="score-chip">
-                    <div class="score">${friend.intimacy_score.toFixed(1)}</div>
+                    <div class="score">${intimacyScoreValue.toFixed(1)}</div>
                     <div class="score-label">亲密度</div>
                 </div>
                 <div class="score-bar">
@@ -964,12 +992,12 @@ function renderRankings(rankings, fromCache = false) {
                     <div class="trend-row">
                         <div class="trend-label"><i class="fas fa-chart-line"></i> 近${RANKING_DAYS}天频率</div>
                         ${activityTrendHtml}
-                        <span class="trend-value">${lastActivity} 条/天</span>
+                        <span class="trend-value">${avgActivity.toFixed(1)} 条/天</span>
                     </div>
                     <div class="trend-row">
                         <div class="trend-label"><i class="fas fa-heart"></i> 近${RANKING_DAYS}天得分</div>
                         ${scoreTrendHtml}
-                        <span class="trend-value">${Number(lastScore || 0).toFixed(1)}</span>
+                        <span class="trend-value">${avgScore.toFixed(1)}</span>
                     </div>
                 </div>
             </div>
