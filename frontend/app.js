@@ -7,6 +7,8 @@ const FALLBACK_SENTIMENT_LIMIT = 50;
 const FALLBACK_SENTIMENT_BATCH_SIZE = 5;
 const MIN_TREND_BAR_HEIGHT = 6;
 const MAX_TREND_HEIGHT_PERCENTAGE = 100;
+const RADAR_LABEL_WRAP_THRESHOLD = 5;
+const INSIGHTS_REFRESH_DELAY = 400;
 const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 let token = null;
 let currentUserId = null;
@@ -16,6 +18,14 @@ let ws = null;
 let wordCloudData = [];
 let analysisData = null;
 let rankingsCache = [];
+let insightsRefreshTimer = null;
+const EMPTY_ANALYSIS_DATA = Object.freeze({
+    intimacy_score: 0,
+    sentiment_factor: 0,
+    frequency_factor: 0,
+    flow_factor: 0,
+    consecutive_factor: 0
+});
 
 // ECharts instances
 let wordcloudChart = null;
@@ -332,6 +342,9 @@ async function selectFriend(event, friendId, username) {
     
     // Connect WebSocket
     connectWebSocket(friendId);
+    
+    // Refresh insights and rankings for the selected friend
+    scheduleInsightsRefresh(true);
 }
 
 // Load chat history
@@ -441,6 +454,7 @@ function connectWebSocket(friendId) {
         // Avoid duplicates - only append if it's from the other user
         if (msg.sender_id !== currentUserId) {
             appendMessage(msg);
+            scheduleInsightsRefresh();
         }
     };
     
@@ -476,12 +490,63 @@ function sendMessage() {
     appendMessage(msg);
     
     input.value = '';
+    scheduleInsightsRefresh();
+}
+
+function buildEmptyAnalysisData() {
+    return { ...EMPTY_ANALYSIS_DATA };
+}
+
+function renderAnalysisSummary(data) {
+    const scoreCircle = document.getElementById('intimacy-score');
+    const sentimentEl = document.getElementById('sentiment-factor');
+    const frequencyEl = document.getElementById('frequency-factor');
+    if (!scoreCircle || !sentimentEl || !frequencyEl) return;
+    
+    if (!data) {
+        scoreCircle.innerHTML = `
+            <span class="score-value">--</span>
+            <span class="score-label">分</span>
+        `;
+        sentimentEl.textContent = '--';
+        frequencyEl.textContent = '--';
+        return;
+    }
+    
+    scoreCircle.innerHTML = `
+        <span class="score-value">${Number(data.intimacy_score || 0).toFixed(1)}</span>
+        <span class="score-label">分</span>
+    `;
+    sentimentEl.textContent = Number(data.sentiment_factor || 0).toFixed(1);
+    frequencyEl.textContent = Number(data.frequency_factor || 0).toFixed(1);
+}
+
+function scheduleInsightsRefresh(immediate = false) {
+    if (!currentFriendId) return;
+    if (insightsRefreshTimer) {
+        clearTimeout(insightsRefreshTimer);
+    }
+    const delay = immediate ? 0 : INSIGHTS_REFRESH_DELAY;
+    insightsRefreshTimer = setTimeout(() => {
+        refreshInsightsForCurrentFriend().catch(err => console.error('Refresh insights failed:', err));
+    }, delay);
+}
+
+async function refreshInsightsForCurrentFriend() {
+    if (!currentFriendId) return;
+    await analyzeChat({ silent: true });
+    if (token) {
+        await loadRankings(true);
+    }
 }
 
 // Analyze chat
-async function analyzeChat() {
+async function analyzeChat(options = {}) {
+    const { silent = false } = options;
     if (!currentFriendId) {
-        alert('请先选择一个好友');
+        if (!silent) {
+            alert('请先选择一个好友');
+        }
         return;
     }
     
@@ -493,12 +558,29 @@ async function analyzeChat() {
             }
         });
         
-        if (!historyResponse.ok) return;
+        if (!historyResponse.ok) {
+            if (!silent) {
+                alert('无法获取聊天记录');
+            }
+            return;
+        }
         
-        const messages = await historyResponse.json();
+        let messages = [];
+        try {
+            const parsed = await historyResponse.json();
+            messages = parsed;
+        } catch (parseErr) {
+            console.error('Failed to parse chat history:', parseErr);
+            messages = [];
+        }
         
         if (messages.length === 0) {
-            alert('没有足够的消息进行分析');
+            wordCloudData = [];
+            renderWordCloud(wordCloudData);
+            updateWordcloudChart();
+            analysisData = buildEmptyAnalysisData();
+            renderAnalysisSummary(analysisData);
+            updateRadarChart();
             return;
         }
         
@@ -517,10 +599,9 @@ async function analyzeChat() {
             })
         });
         
-        if (wordCloudResponse.ok) {
-            wordCloudData = await wordCloudResponse.json();
-            renderWordCloud(wordCloudData);
-        }
+        wordCloudData = wordCloudResponse.ok ? await wordCloudResponse.json() : [];
+        renderWordCloud(wordCloudData);
+        updateWordcloudChart();
         
         // Calculate intimacy score
         let sentimentScores = messages
@@ -614,21 +695,20 @@ async function analyzeChat() {
         
         if (intimacyResponse.ok) {
             analysisData = await intimacyResponse.json();
-            
-            // Update score circle
-            const scoreCircle = document.getElementById('intimacy-score');
-            scoreCircle.innerHTML = `
-                <span class="score-value">${analysisData.intimacy_score.toFixed(1)}</span>
-                <span class="score-label">分</span>
-            `;
-            
-            document.getElementById('sentiment-factor').textContent = analysisData.sentiment_factor.toFixed(1);
-            document.getElementById('frequency-factor').textContent = analysisData.frequency_factor.toFixed(1);
+        } else {
+            analysisData = buildEmptyAnalysisData();
         }
+        renderAnalysisSummary(analysisData);
+        updateRadarChart();
         
     } catch (err) {
         console.error('Analysis failed:', err);
-        alert('分析失败，请重试');
+        analysisData = buildEmptyAnalysisData();
+        renderAnalysisSummary(analysisData);
+        updateRadarChart();
+        if (!silent) {
+            alert('分析失败，请重试');
+        }
     }
 }
 
@@ -667,7 +747,7 @@ function renderWordCloud(words) {
 }
 
 // Load rankings with better UX states
-async function loadRankings() {
+async function loadRankings(silent = false, limit = 0) {
     const container = document.getElementById('rankings-list');
     const button = document.getElementById('rankings-refresh');
     
@@ -682,12 +762,14 @@ async function loadRankings() {
         return;
     }
     
-    setRankingsLoading(button, true);
-    renderRankingsSkeleton(container);
+    if (!silent) {
+        setRankingsLoading(button, true);
+        renderRankingsSkeleton(container);
+    }
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
-        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=10&days=${RANKING_DAYS}`, {
+        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=${limit}&days=${RANKING_DAYS}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -709,7 +791,7 @@ async function loadRankings() {
         if (rankingsCache.length > 0) {
             renderRankings(rankingsCache, true);
             updateRankingsStatus('网络异常，已显示缓存数据', 'error');
-        } else {
+        } else if (!silent) {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -717,9 +799,13 @@ async function loadRankings() {
                 </div>
             `;
             updateRankingsStatus('加载失败，请稍后重试', 'error');
+        } else {
+            updateRankingsStatus('排行榜加载失败', 'error');
         }
     } finally {
-        setRankingsLoading(button, false);
+        if (!silent) {
+            setRankingsLoading(button, false);
+        }
     }
 }
 
@@ -1049,6 +1135,19 @@ function updateWordcloudChart() {
     });
 }
 
+function formatRadarLabel(name = '') {
+    // Prefer word-based wrapping first; fallback to balanced character split for label readability
+    const text = String(name).trim();
+    if (text.length <= RADAR_LABEL_WRAP_THRESHOLD) return text;
+    const parts = text.split(/\s+/).filter(Boolean);
+    if (parts.length > 1) {
+        const mid = Math.ceil(parts.length / 2);
+        return `${parts.slice(0, mid).join(' ')}\n${parts.slice(mid).join(' ')}`;
+    }
+    const midpoint = Math.ceil(text.length / 2);
+    return `${text.slice(0, midpoint)}\n${text.slice(midpoint)}`;
+}
+
 // Initialize Radar Chart
 function initRadarChart() {
     const chartDom = document.getElementById('radar-chart');
@@ -1088,13 +1187,14 @@ function initRadarChart() {
                 { name: '消息均衡', max: 100 }
             ],
             center: ['50%', '55%'],
-            radius: '65%',
+            radius: '68%',
             axisName: {
                 color: '#e2e8f0',
                 fontSize: 13,
                 fontWeight: 500,
                 lineHeight: 18,
-                distance: 10
+                distance: 10,
+                formatter: formatRadarLabel
             },
             splitArea: {
                 areaStyle: {
@@ -1170,7 +1270,17 @@ function updateRadarChart() {
             }
         },
         radar: {
-            indicator: factors.map(f => ({ name: f.name, max: 100 }))
+            indicator: factors.map(f => ({ name: f.name, max: 100 })),
+            axisName: {
+                formatter: formatRadarLabel,
+                color: '#e2e8f0',
+                fontSize: 13,
+                fontWeight: 500,
+                lineHeight: 18,
+                distance: 10
+            },
+            radius: '68%',
+            center: ['50%', '55%']
         },
         series: [{
             data: [{
