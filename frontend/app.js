@@ -762,11 +762,11 @@ async function loadRankings(silent = false, limit = 0) {
         return;
     }
     
-        if (!silent) {
-            setRankingsLoading(button, true);
-            renderRankingsSkeleton(container);
-        }
-        updateRankingsStatus('正在刷新最新排行...', 'loading');
+    if (!silent) {
+        setRankingsLoading(button, true);
+        renderRankingsSkeleton(container);
+    }
+    updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
         const response = await fetch(`${API_BASE}/rankings/top-friends?limit=${limit}&days=${RANKING_DAYS}`, {
