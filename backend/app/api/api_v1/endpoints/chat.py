@@ -8,6 +8,7 @@ from typing import List
 import json
 import logging
 import math
+from datetime import datetime, timedelta, timezone
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -17,14 +18,12 @@ from backend.app.schemas.message import MessageResponse
 from backend.app.services.connection_manager import manager
 from backend.app.core.security import decode_access_token
 from backend.app.services.analysis_service import analyze_sentiment_llm
+from backend.app.core.intimacy_constants import INTIMACY_LOG_SCALE, INTIMACY_SENTIMENT_SCALE
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-INTIMACY_LOG_SCALE = 10.0
-INTIMACY_SENTIMENT_SCALE = 20.0
 
 
 @router.websocket("/ws/{friend_id}")
@@ -147,6 +146,8 @@ async def websocket_endpoint(
             
             if friendship:
                 # Recalculate friendship stats from persisted messages to keep DB in sync
+                # Bound recalculation to recent history for performance
+                recalc_since = datetime.now(timezone.utc) - timedelta(days=30)
                 total_messages, avg_sentiment, pos_count, neg_count = db.query(
                     func.count(Message.id),
                     func.avg(Message.sentiment_score),
@@ -157,7 +158,9 @@ async def websocket_endpoint(
                         (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
                     ) | (
                         (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
-                    )
+                    ),
+                    Message.created_at.isnot(None),
+                    Message.created_at >= recalc_since
                 ).one()
                 total_messages = total_messages or 0
                 
