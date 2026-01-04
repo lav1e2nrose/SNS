@@ -1139,7 +1139,7 @@ function updateWordcloudChart() {
 }
 
 function formatRadarLabel(name = '') {
-    const text = String(name || '').trim();
+    const text = String(name ?? '').trim();
     if (text.length <= RADAR_LABEL_WRAP_THRESHOLD) return text;
     const parts = text.split(/\s+/).filter(Boolean);
     if (parts.length > 1) {
