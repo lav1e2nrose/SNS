@@ -565,7 +565,13 @@ async function analyzeChat(options = {}) {
             return;
         }
         
-        const messages = await historyResponse.json() || [];
+        let messages = [];
+        try {
+            messages = await historyResponse.json();
+        } catch (parseErr) {
+            console.error('Failed to parse chat history:', parseErr);
+            messages = [];
+        }
         
         if (messages.length === 0) {
             wordCloudData = [];
@@ -1141,7 +1147,10 @@ function formatRadarLabel(name = '') {
         return `${parts.slice(0, mid).join(' ')}\n${parts.slice(mid).join(' ')}`;
     }
     const midpoint = Math.ceil(text.length / 2);
-    return `${text.slice(0, midpoint)}\n${text.slice(midpoint)}`;
+    const first = text.slice(0, midpoint);
+    const second = text.slice(midpoint);
+    if (first.length <= 1 || second.length <= 1) return text;
+    return `${first}\n${second}`;
 }
 
 // Initialize Radar Chart

@@ -35,7 +35,7 @@ def average_sentiment(sentiments: list) -> float:
 
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
-    # Upper bound keeps payloads manageable; adjust here if bigger leaderboards are needed
+    # Upper bound keeps payloads manageable and avoids overly heavy queries; adjust cautiously if bigger leaderboards are needed
     limit: int = Query(0, ge=0, le=1000),
     days: int = Query(7, ge=1, le=30),
     current_user: User = Depends(get_current_user),
@@ -198,7 +198,7 @@ def get_top_friends(
         # Sort by intimacy score (descending) and limit (0 means no limit)
         friend_rankings.sort(key=lambda x: x.intimacy_score, reverse=True)
         
-        if limit and limit > 0:
+        if limit > 0:
             return friend_rankings[:limit]
         return friend_rankings
         
