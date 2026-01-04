@@ -133,6 +133,7 @@ def get_top_friends(
             
             activity_trend: List[ActivityPoint] = []
             score_trend: List[ScorePoint] = []
+            total_recent_interactions = 0
             for i in range(days):
                 day_date = (start_date + timedelta(days=i)).date()
                 count = daily_counts.get(day_date, 0)
@@ -142,6 +143,10 @@ def get_top_friends(
                 iso_date = day_date.isoformat()
                 activity_trend.append(ActivityPoint(date=iso_date, count=count))
                 score_trend.append(ScorePoint(date=iso_date, score=round(daily_score, SCORE_DECIMAL_PLACES)))
+                total_recent_interactions += count
+            
+            trend_scores = [point.score for point in score_trend if point.score is not None]
+            computed_intimacy = round(sum(trend_scores) / len(trend_scores), SCORE_DECIMAL_PLACES) if trend_scores else 0.0
             
             # Get last message timestamp
             last_message = db.query(Message).filter(
@@ -154,8 +159,8 @@ def get_top_friends(
             
             last_interaction = last_message.created_at if last_message else None
             
-            # If intimacy score is not set or is 0, calculate a basic score from messages
-            intimacy_score = friendship.intimacy_score
+            # Prefer recent computed intimacy; fallback to stored or basic calculation
+            intimacy_score = computed_intimacy if computed_intimacy > 0.0 else friendship.intimacy_score
             if intimacy_score is None or intimacy_score == 0.0:
                 # Count messages for this friendship
                 message_count = db.query(func.count(Message.id)).filter(
@@ -180,13 +185,16 @@ def get_top_friends(
                 # Capped at 100
                 intimacy_score = min(100.0, math.log(message_count + 1) * 10 + (avg_sentiment + 1) * 20)
             
+            # Prefer recent interactions window when available
+            interaction_count = total_recent_interactions if total_recent_interactions > 0 else friendship.interaction_count
+            
             friend_rankings.append(
                 FriendRanking(
                     friend_id=friend.id,
                     username=friend.username,
                     full_name=friend.full_name,
                     intimacy_score=intimacy_score,
-                    interaction_count=friendship.interaction_count,
+                    interaction_count=interaction_count,
                     positive_interactions=friendship.positive_interactions,
                     negative_interactions=friendship.negative_interactions,
                     last_interaction=last_interaction,
