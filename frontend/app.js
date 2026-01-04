@@ -750,7 +750,7 @@ function renderWordCloud(words) {
 }
 
 // Load rankings with better UX states
-async function loadRankings(silent = false) {
+async function loadRankings(silent = false, limit = 0) {
     const container = document.getElementById('rankings-list');
     const button = document.getElementById('rankings-refresh');
     
@@ -772,7 +772,7 @@ async function loadRankings(silent = false) {
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
     try {
-        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=0&days=${RANKING_DAYS}`, {
+        const response = await fetch(`${API_BASE}/rankings/top-friends?limit=${limit}&days=${RANKING_DAYS}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -1147,10 +1147,7 @@ function formatRadarLabel(name = '') {
         return `${parts.slice(0, mid).join(' ')}\n${parts.slice(mid).join(' ')}`;
     }
     const midpoint = Math.ceil(text.length / 2);
-    const first = text.slice(0, midpoint);
-    const second = text.slice(midpoint);
-    if (first.length <= 1 || second.length <= 1) return text;
-    return `${first}\n${second}`;
+    return `${text.slice(0, midpoint)}\n${text.slice(midpoint)}`;
 }
 
 // Initialize Radar Chart

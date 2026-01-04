@@ -35,7 +35,7 @@ def average_sentiment(sentiments: list) -> float:
 
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
-    # Upper bound keeps payloads manageable and avoids overly heavy queries; typical UI shows 10–50 entries, so 1000 is a safety ceiling to prevent large payloads
+    # Upper bound keeps payloads manageable and avoids overly heavy queries; typical UI shows 10-50 entries, so 1000 is a safety ceiling to prevent large payloads
     limit: int = Query(0, ge=0, le=1000),
     days: int = Query(7, ge=1, le=30),
     current_user: User = Depends(get_current_user),
