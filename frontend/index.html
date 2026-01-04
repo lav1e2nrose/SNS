@@ -261,7 +261,13 @@
                         <h3>好友排行榜</h3>
                     </div>
                     <div id="rankings-content" class="panel-content ranking-cta">
-                        <p id="rankings-brief" class="ranking-brief">排行榜将在弹窗中展示，更大更整洁。</p>
+                        <p id="rankings-brief" class="ranking-brief">实时好友排行（TOP3 预览）</p>
+                        <div id="rankings-preview" class="rankings-preview">
+                            <div class="empty-state small">
+                                <i class="fas fa-crown"></i>
+                                <span>点击下方刷新即可查看</span>
+                            </div>
+                        </div>
                         <div class="ranking-cta-actions">
                             <button class="btn-secondary" onclick="loadRankings()">
                                 <i class="fas fa-sync-alt"></i> 刷新数据

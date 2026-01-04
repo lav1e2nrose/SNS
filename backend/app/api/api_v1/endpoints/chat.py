@@ -3,10 +3,11 @@ Chat endpoints for real-time messaging and history.
 """
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from typing import List
 import json
 import logging
+import math
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -142,13 +143,43 @@ async def websocket_endpoint(
             ).first()
             
             if friendship:
-                friendship.interaction_count = (friendship.interaction_count or 0) + 1
-                # Update intimacy score based on interaction count (simple increment)
-                # More sophisticated calculation happens in the analysis endpoint
-                if friendship.intimacy_score is None:
-                    friendship.intimacy_score = 0.0
-                # Small increment for each message, capped at 100
-                friendship.intimacy_score = min(100.0, friendship.intimacy_score + 0.1)
+                # Recalculate friendship stats from persisted messages to keep DB in sync
+                total_messages = db.query(func.count(Message.id)).filter(
+                    (
+                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
+                    ) | (
+                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
+                    )
+                ).scalar() or 0
+                
+                avg_sentiment = db.query(func.avg(Message.sentiment_score)).filter(
+                    (
+                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
+                    ) | (
+                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
+                    ),
+                    Message.sentiment_score.isnot(None)
+                ).scalar()
+                
+                friendship.interaction_count = total_messages
+                # Initialize counters
+                friendship.positive_interactions = friendship.positive_interactions or 0
+                friendship.negative_interactions = friendship.negative_interactions or 0
+                # Track sentiment interaction directionally when available
+                if sentiment_score is not None:
+                    if sentiment_score > 0:
+                        friendship.positive_interactions += 1
+                    elif sentiment_score < 0:
+                        friendship.negative_interactions += 1
+                
+                avg_sentiment = avg_sentiment or 0.0
+                intimacy_value = 0.0
+                if total_messages > 0:
+                    intimacy_value = min(
+                        100.0,
+                        math.log(total_messages + 1) * 10 + (avg_sentiment + 1) * 20
+                    )
+                friendship.intimacy_score = round(intimacy_value, 2)
                 db.commit()
             
             # Prepare response message with all sentiment fields

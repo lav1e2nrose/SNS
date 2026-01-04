@@ -758,6 +758,7 @@ async function loadRankings(silent = false, limit = 0) {
                 <span>请先登录后再查看排行榜</span>
             </div>
         `;
+        renderRankingsPreview([]);
         updateRankingsStatus('请先登录后再查看排行榜', 'error');
         return;
     }
@@ -765,6 +766,7 @@ async function loadRankings(silent = false, limit = 0) {
     if (!silent) {
         setRankingsLoading(button, true);
         renderRankingsSkeleton(container);
+        renderRankingsPreviewLoading();
     }
     updateRankingsStatus('正在刷新最新排行...', 'loading');
     
@@ -783,6 +785,7 @@ async function loadRankings(silent = false, limit = 0) {
         const rankings = await response.json();
         rankingsCache = Array.isArray(rankings) ? rankings : [];
         renderRankings(rankingsCache);
+        renderRankingsPreview(rankingsCache);
         
         const updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
         updateRankingsStatus(`已更新 · ${rankingsCache.length} 位好友 · ${updatedAt}`, 'success');
@@ -790,6 +793,7 @@ async function loadRankings(silent = false, limit = 0) {
         console.error('Failed to load rankings:', err);
         if (rankingsCache.length > 0) {
             renderRankings(rankingsCache, true);
+            renderRankingsPreview(rankingsCache, true);
             updateRankingsStatus('网络异常，已显示缓存数据', 'error');
         } else if (!silent) {
             container.innerHTML = `
@@ -798,8 +802,10 @@ async function loadRankings(silent = false, limit = 0) {
                     <span>${escapeHtml(err.message || '排行榜加载失败')}</span>
                 </div>
             `;
+            renderRankingsPreview([], false);
             updateRankingsStatus('加载失败，请稍后重试', 'error');
         } else {
+            renderRankingsPreview([], false);
             updateRankingsStatus('排行榜加载失败', 'error');
         }
     } finally {
@@ -860,6 +866,62 @@ function renderRankingsSkeleton(container) {
             <div class="skeleton-row"></div>
         </div>
     `;
+}
+
+function renderRankingsPreviewLoading() {
+    const container = document.getElementById('rankings-preview');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="ranking-skeleton">
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+        </div>
+    `;
+}
+
+function renderRankingsPreview(rankings = [], fromCache = false) {
+    const container = document.getElementById('rankings-preview');
+    if (!container) return;
+    
+    if (!token) {
+        container.innerHTML = `
+            <div class="empty-state small">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>登录后查看好友排行</span>
+            </div>
+        `;
+        return;
+    }
+    
+    if (!rankings || rankings.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state small">
+                <i class="fas fa-chart-line"></i>
+                <span>暂无排行数据</span>
+            </div>
+        `;
+        return;
+    }
+    
+    const topThree = rankings.slice(0, 3);
+    container.innerHTML = fromCache
+        ? `<div class="ranking-hint"><i class="fas fa-database"></i> 预览缓存数据</div>`
+        : '';
+    
+    topThree.forEach((friend, idx) => {
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.title = '点击查看完整排行榜';
+        item.onclick = () => openRankingsModal();
+        item.innerHTML = `
+            <div class="preview-left">
+                <span class="preview-rank">${idx + 1}</span>
+                <div class="preview-name">${escapeHtml(friend.username || '未命名')}</div>
+            </div>
+            <div class="preview-score">${Number(friend.intimacy_score || 0).toFixed(1)}</div>
+        `;
+        container.appendChild(item);
+    });
 }
 
 /**
