@@ -567,7 +567,8 @@ async function analyzeChat(options = {}) {
         
         let messages = [];
         try {
-            messages = await historyResponse.json();
+            const parsed = await historyResponse.json();
+            messages = parsed;
         } catch (parseErr) {
             console.error('Failed to parse chat history:', parseErr);
             messages = [];
@@ -1135,6 +1136,7 @@ function updateWordcloudChart() {
 }
 
 function formatRadarLabel(name = '') {
+    // Prefer word-based wrapping first; fallback to balanced character split for label readability
     const text = String(name).trim();
     if (text.length <= RADAR_LABEL_WRAP_THRESHOLD) return text;
     const parts = text.split(/\s+/).filter(Boolean);
