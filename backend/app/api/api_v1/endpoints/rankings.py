@@ -35,7 +35,7 @@ def average_sentiment(sentiments: list) -> float:
 
 @router.get("/top-friends", response_model=List[FriendRanking])
 def get_top_friends(
-    limit: int = 10,
+    limit: int = Query(0, ge=0, le=1000),
     days: int = Query(7, ge=1, le=30),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -48,7 +48,7 @@ def get_top_friends(
     and sentiment scores.
     
     Args:
-        limit: Maximum number of friends to return (default: 10)
+        limit: Maximum number of friends to return (0 returns all, default: 0)
         current_user: Current authenticated user
         db: Database session
         
@@ -194,10 +194,12 @@ def get_top_friends(
                 )
             )
         
-        # Sort by intimacy score (descending) and limit
+        # Sort by intimacy score (descending) and limit (0 means no limit)
         friend_rankings.sort(key=lambda x: x.intimacy_score, reverse=True)
         
-        return friend_rankings[:limit]
+        if limit and limit > 0:
+            return friend_rankings[:limit]
+        return friend_rankings
         
     except Exception as e:
         raise HTTPException(
