@@ -20,6 +20,33 @@ def test_get_top_friends_empty(client, auth_headers, test_user):
     assert response.json() == []
 
 
+def test_pending_friend_still_visible(client, auth_headers, test_user, test_user2, db_session):
+    """Pending friendships should still appear in rankings."""
+    friendship = Friendship(
+        user_id=test_user.id,
+        friend_id=test_user2.id,
+        status="pending",
+        intimacy_score=0.0,
+        interaction_count=0,
+        positive_interactions=0,
+        negative_interactions=0
+    )
+    db_session.add(friendship)
+    db_session.commit()
+    db_session.refresh(friendship)
+    
+    response = client.get(
+        "/api/v1/rankings/top-friends",
+        headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["friend_id"] == test_user2.id
+    assert len(data[0]["activity_trend"]) == 7
+    assert len(data[0]["score_trend"]) == 7
+
+
 def test_get_top_friends_with_data(client, auth_headers, test_user, test_user2, db_session):
     """Test getting top friends with friendship data."""
     # Create accepted friendship
