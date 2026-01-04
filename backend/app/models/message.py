@@ -1,7 +1,7 @@
 """
 Message model for chat messages with sentiment analysis.
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, CheckConstraint, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, CheckConstraint, Boolean, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from backend.app.db.base import Base
@@ -31,6 +31,8 @@ class Message(Base):
         CheckConstraint('positive_score >= 0 AND positive_score <= 1', name='check_positive_range'),
         CheckConstraint('negative_score >= 0 AND negative_score <= 1', name='check_negative_range'),
         CheckConstraint('neutral_score >= 0 AND neutral_score <= 1', name='check_neutral_range'),
+        Index('ix_messages_pair_created', 'sender_id', 'receiver_id', 'created_at'),
+        Index('ix_messages_sentiment', 'sentiment_score'),
     )
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())

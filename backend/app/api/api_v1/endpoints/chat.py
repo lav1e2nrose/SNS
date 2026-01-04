@@ -148,11 +148,17 @@ async def websocket_endpoint(
             ).first()
             
             if friendship:
-                recalc_needed = ((friendship.interaction_count or 0) % BATCH_RECALC_FREQUENCY) == 0
+                current_count = friendship.interaction_count or 0
+                recalc_needed = (
+                    friendship.intimacy_score is None
+                    or friendship.intimacy_score == 0.0
+                    or friendship.interaction_count is None
+                    or current_count == 0
+                    or (current_count >= BATCH_RECALC_FREQUENCY and (current_count % BATCH_RECALC_FREQUENCY) == 0)
+                )
                 
                 if recalc_needed:
                     # Recalculate friendship stats from persisted messages to keep DB in sync (batched every 5 msgs)
-                    recalc_since = datetime.now(timezone.utc) - timedelta(days=RECALC_LOOKBACK_DAYS)
                     total_messages, avg_sentiment, pos_count, neg_count = db.query(
                         func.count(Message.id),
                         func.avg(Message.sentiment_score),
@@ -163,25 +169,26 @@ async def websocket_endpoint(
                             (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
                         ) | (
                             (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
-                        ),
-                        Message.created_at.isnot(None),
-                        Message.created_at >= recalc_since
+                        )
                     ).one()
                     total_messages = total_messages or 0
+                    effective_total = total_messages if total_messages > 0 else current_count + 1
                     
-                    friendship.interaction_count = total_messages
+                    friendship.interaction_count = max(effective_total, current_count + 1)
                     friendship.positive_interactions = int(pos_count or 0)
                     friendship.negative_interactions = int(neg_count or 0)
                     
                     avg_sentiment = avg_sentiment or 0.0
                     intimacy_value = 0.0
-                    if total_messages > 0:
+                    if effective_total > 0:
                         # Diminishing returns via log on frequency, sentiment shifted from [-1,1] to [0,2]
                         intimacy_value = min(
                             100.0,
-                            math.log(total_messages + 1) * INTIMACY_LOG_SCALE
+                            math.log(effective_total + 1) * INTIMACY_LOG_SCALE
                             + (avg_sentiment + 1) * INTIMACY_SENTIMENT_SCALE
                         )
+                        if intimacy_value == 0.0:
+                            intimacy_value = min(100.0, math.log(effective_total + 1) * INTIMACY_LOG_SCALE + INTIMACY_SENTIMENT_SCALE)
                     friendship.intimacy_score = round(intimacy_value, 2)
                     db.commit()
                 else:

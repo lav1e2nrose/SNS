@@ -903,10 +903,15 @@ function renderRankingsPreview(rankings = [], fromCache = false) {
         return;
     }
     
+    container.innerHTML = '';
+    if (fromCache) {
+        const hint = document.createElement('div');
+        hint.className = 'ranking-hint';
+        hint.innerHTML = `<i class="fas fa-database"></i> 预览缓存数据`;
+        container.appendChild(hint);
+    }
+    
     const topThree = rankings.slice(0, 3);
-    container.innerHTML = fromCache
-        ? `<div class="ranking-hint"><i class="fas fa-database"></i> 预览缓存数据</div>`
-        : '';
     
     topThree.forEach((friend, idx) => {
         const item = document.createElement('div');
