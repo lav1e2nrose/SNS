@@ -74,7 +74,7 @@ def get_top_friends(
             User, User.id == Friendship.friend_id
         ).filter(
             Friendship.user_id == current_user.id,
-            Friendship.status == "accepted"
+            Friendship.status != "blocked"
         ).all()
         
         friendships_as_friend = db.query(
@@ -84,7 +84,7 @@ def get_top_friends(
             User, User.id == Friendship.user_id
         ).filter(
             Friendship.friend_id == current_user.id,
-            Friendship.status == "accepted"
+            Friendship.status != "blocked"
         ).all()
         
         # Combine friendships and track unique friends to avoid duplicates
