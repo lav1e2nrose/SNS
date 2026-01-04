@@ -3,7 +3,7 @@ Chat endpoints for real-time messaging and history.
 """
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, case
 from typing import List
 import json
 import logging
@@ -160,19 +160,25 @@ async def websocket_endpoint(
                 total_messages = total_messages or 0
                 
                 friendship.interaction_count = total_messages
-                # Initialize counters
-                friendship.positive_interactions = friendship.positive_interactions or 0
-                friendship.negative_interactions = friendship.negative_interactions or 0
-                # Track sentiment interaction directionally when available
-                if sentiment_score is not None:
-                    if sentiment_score > 0:
-                        friendship.positive_interactions += 1
-                    elif sentiment_score < 0:
-                        friendship.negative_interactions += 1
+                # Rebuild sentiment counters from persisted data to keep distribution accurate
+                pos_count, neg_count = db.query(
+                    func.sum(case((Message.sentiment_score > 0, 1), else_=0)),
+                    func.sum(case((Message.sentiment_score < 0, 1), else_=0))
+                ).filter(
+                    (
+                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
+                    ) | (
+                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
+                    ),
+                    Message.sentiment_score.isnot(None)
+                ).one()
+                friendship.positive_interactions = int(pos_count or 0)
+                friendship.negative_interactions = int(neg_count or 0)
                 
                 avg_sentiment = avg_sentiment or 0.0
                 intimacy_value = 0.0
                 if total_messages > 0:
+                    # Diminishing returns via log on frequency, sentiment shifted from [-1,1] to [0,2]
                     intimacy_value = min(
                         100.0,
                         math.log(total_messages + 1) * INTIMACY_LOG_SCALE
