@@ -918,7 +918,7 @@ function renderRankingsPreview(rankings = [], fromCache = false) {
                 <span class="preview-rank">${idx + 1}</span>
                 <div class="preview-name">${escapeHtml(friend.username || '未命名')}</div>
             </div>
-            <div class="preview-score">${(parseFloat(friend.intimacy_score) || 0).toFixed(1)}</div>
+            <div class="preview-score">${formatIntimacyScore(friend.intimacy_score)}</div>
         `;
         container.appendChild(item);
     });
@@ -1384,4 +1384,8 @@ function updateRadarChart() {
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
     return String(text ?? '').replace(/[&<>"']/g, (m) => HTML_ESCAPE_MAP[m] || m);
+}
+
+function formatIntimacyScore(value) {
+    return (parseFloat(value) || 0).toFixed(1);
 }

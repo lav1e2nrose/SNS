@@ -145,40 +145,53 @@ async def websocket_endpoint(
             ).first()
             
             if friendship:
-                # Recalculate friendship stats from persisted messages to keep DB in sync
-                # Bound recalculation to recent history for performance
-                recalc_since = datetime.now(timezone.utc) - timedelta(days=30)
-                total_messages, avg_sentiment, pos_count, neg_count = db.query(
-                    func.count(Message.id),
-                    func.avg(Message.sentiment_score),
-                    func.sum(case((Message.sentiment_score > 0, 1), else_=0)),
-                    func.sum(case((Message.sentiment_score < 0, 1), else_=0))
-                ).filter(
-                    (
-                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
-                    ) | (
-                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
-                    ),
-                    Message.created_at.isnot(None),
-                    Message.created_at >= recalc_since
-                ).one()
-                total_messages = total_messages or 0
+                recalc_needed = ((friendship.interaction_count or 0) % 5) == 0
                 
-                friendship.interaction_count = total_messages
-                friendship.positive_interactions = int(pos_count or 0)
-                friendship.negative_interactions = int(neg_count or 0)
-                
-                avg_sentiment = avg_sentiment or 0.0
-                intimacy_value = 0.0
-                if total_messages > 0:
-                    # Diminishing returns via log on frequency, sentiment shifted from [-1,1] to [0,2]
-                    intimacy_value = min(
-                        100.0,
-                        math.log(total_messages + 1) * INTIMACY_LOG_SCALE
-                        + (avg_sentiment + 1) * INTIMACY_SENTIMENT_SCALE
-                    )
-                friendship.intimacy_score = round(intimacy_value, 2)
-                db.commit()
+                if recalc_needed:
+                    # Recalculate friendship stats from persisted messages to keep DB in sync (batched every 5 msgs)
+                    recalc_since = datetime.now(timezone.utc) - timedelta(days=30)
+                    total_messages, avg_sentiment, pos_count, neg_count = db.query(
+                        func.count(Message.id),
+                        func.avg(Message.sentiment_score),
+                        func.sum(case((Message.sentiment_score > 0, 1), else_=0)),
+                        func.sum(case((Message.sentiment_score < 0, 1), else_=0))
+                    ).filter(
+                        (
+                            (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
+                        ) | (
+                            (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
+                        ),
+                        Message.created_at.isnot(None),
+                        Message.created_at >= recalc_since
+                    ).one()
+                    total_messages = total_messages or 0
+                    
+                    friendship.interaction_count = total_messages
+                    friendship.positive_interactions = int(pos_count or 0)
+                    friendship.negative_interactions = int(neg_count or 0)
+                    
+                    avg_sentiment = avg_sentiment or 0.0
+                    intimacy_value = 0.0
+                    if total_messages > 0:
+                        # Diminishing returns via log on frequency, sentiment shifted from [-1,1] to [0,2]
+                        intimacy_value = min(
+                            100.0,
+                            math.log(total_messages + 1) * INTIMACY_LOG_SCALE
+                            + (avg_sentiment + 1) * INTIMACY_SENTIMENT_SCALE
+                        )
+                    friendship.intimacy_score = round(intimacy_value, 2)
+                    db.commit()
+                else:
+                    # Lightweight incremental update between recalculation batches
+                    friendship.interaction_count = (friendship.interaction_count or 0) + 1
+                    friendship.positive_interactions = friendship.positive_interactions or 0
+                    friendship.negative_interactions = friendship.negative_interactions or 0
+                    if sentiment_score is not None:
+                        if sentiment_score > 0:
+                            friendship.positive_interactions += 1
+                        elif sentiment_score < 0:
+                            friendship.negative_interactions += 1
+                    db.commit()
             
             # Prepare response message with all sentiment fields
             response_data = {
