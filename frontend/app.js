@@ -598,11 +598,7 @@ async function analyzeChat(options = {}) {
             })
         });
         
-        if (wordCloudResponse.ok) {
-            wordCloudData = await wordCloudResponse.json();
-        } else {
-            wordCloudData = [];
-        }
+        wordCloudData = wordCloudResponse.ok ? await wordCloudResponse.json() : [];
         renderWordCloud(wordCloudData);
         updateWordcloudChart();
         
