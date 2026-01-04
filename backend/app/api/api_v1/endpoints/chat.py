@@ -147,9 +147,11 @@ async def websocket_endpoint(
             
             if friendship:
                 # Recalculate friendship stats from persisted messages to keep DB in sync
-                total_messages, avg_sentiment = db.query(
+                total_messages, avg_sentiment, pos_count, neg_count = db.query(
                     func.count(Message.id),
-                    func.avg(Message.sentiment_score)
+                    func.avg(Message.sentiment_score),
+                    func.sum(case((Message.sentiment_score > 0, 1), else_=0)),
+                    func.sum(case((Message.sentiment_score < 0, 1), else_=0))
                 ).filter(
                     (
                         (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
@@ -160,18 +162,6 @@ async def websocket_endpoint(
                 total_messages = total_messages or 0
                 
                 friendship.interaction_count = total_messages
-                # Rebuild sentiment counters from persisted data to keep distribution accurate
-                pos_count, neg_count = db.query(
-                    func.sum(case((Message.sentiment_score > 0, 1), else_=0)),
-                    func.sum(case((Message.sentiment_score < 0, 1), else_=0))
-                ).filter(
-                    (
-                        (Message.sender_id == user_id) & (Message.receiver_id == friend_id)
-                    ) | (
-                        (Message.sender_id == friend_id) & (Message.receiver_id == user_id)
-                    ),
-                    Message.sentiment_score.isnot(None)
-                ).one()
                 friendship.positive_interactions = int(pos_count or 0)
                 friendship.negative_interactions = int(neg_count or 0)
                 

@@ -918,7 +918,7 @@ function renderRankingsPreview(rankings = [], fromCache = false) {
                 <span class="preview-rank">${idx + 1}</span>
                 <div class="preview-name">${escapeHtml(friend.username || '未命名')}</div>
             </div>
-            <div class="preview-score">${Number(friend.intimacy_score || 0).toFixed(1)}</div>
+            <div class="preview-score">${(parseFloat(friend.intimacy_score) || 0).toFixed(1)}</div>
         `;
         container.appendChild(item);
     });
