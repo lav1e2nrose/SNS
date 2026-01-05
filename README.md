@@ -15,7 +15,7 @@ SNS (Sentiment Analysis Chat) is a sophisticated chat platform that analyzes the
 - **Sentiment Analysis**: Automatic sentiment analysis of chat messages using LLM (DashScope/Qwen)
 - **Word Cloud Generation**: Analyze word frequency in conversations using Jieba
 - **Relationship Tracking**: Monitor friendship intimacy scores based on interaction patterns
-- **Friend Rankings**: Leaderboard showing friends ranked by intimacy score
+- **Friend Rankings**: Leaderboard showing friends ranked by intimacy score, stored and refreshed in real time
 - **Chinese Language Support**: Native support for Chinese text processing using Jieba
 
 ## Technology Stack
@@ -251,6 +251,7 @@ python -m pytest backend/tests/ -v
 
 ### Rankings (`/api/v1/rankings`)
 - `GET /top-friends` - Get friends ranked by intimacy score
+  - Intimacy scores are persisted whenever messages are sent and the leaderboard pulls directly from the database (UI 提供侧边预览与弹窗全量视图)
 
 ### System
 - `GET /` - Serve frontend or return API info

@@ -9,6 +9,7 @@ from collections import defaultdict
 import math
 from datetime import datetime, timedelta, timezone
 from backend.app.schemas.ranking import FriendRanking, ActivityPoint, ScorePoint
+from backend.app.core.intimacy_constants import INTIMACY_LOG_SCALE, INTIMACY_SENTIMENT_SCALE
 from backend.app.api.deps import get_current_user
 from backend.app.db.session import get_db
 from backend.app.models.user import User
@@ -16,15 +17,13 @@ from backend.app.models.friendship import Friendship
 from backend.app.models.message import Message
 router = APIRouter()
 
-SCORE_LOG_SCALE = 10.0  # scales the impact of message frequency (logarithmic)
-SCORE_SENTIMENT_SCALE = 20.0  # scales the impact of average sentiment
 SCORE_DECIMAL_PLACES = 2
 
 
 def calculate_score(count: int, sentiment: float) -> float:
     """Calculate capped intimacy-like score for a given day."""
     return (
-        min(100.0, math.log(count + 1) * SCORE_LOG_SCALE + (sentiment + 1) * SCORE_SENTIMENT_SCALE)
+        min(100.0, math.log(count + 1) * INTIMACY_LOG_SCALE + (sentiment + 1) * INTIMACY_SENTIMENT_SCALE)
         if count > 0 else 0.0
     )
 

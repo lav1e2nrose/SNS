@@ -124,6 +124,8 @@ def test_friendship_interaction_count_updates(client, auth_headers, auth_token, 
     
     # Verify interaction count increased
     assert friendship.interaction_count == initial_count + 2
+    assert friendship.intimacy_score is not None
+    assert friendship.intimacy_score > 0
 
 
 def test_unread_messages_flow(client, auth_headers, test_user, test_user2, db_session):
