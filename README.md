@@ -233,10 +233,10 @@ python -m pytest backend/tests/ -v
 - `POST /login` - Login and get JWT token
 
 #### Related implementation (3.1 用户身份认证)
-- Password hashing (passlib + Bcrypt) and JWT utilities: `backend/app/core/security.py`
-- Registration and login routes with password hashing: `backend/app/api/api_v1/endpoints/auth.py`
-- Request token validation dependency: `backend/app/api/deps.py`
-- Input validation for email/password: `backend/app/schemas/user.py`
+- Password hashing (passlib + Bcrypt) and JWT utilities (`get_password_hash`, `create_access_token`): `backend/app/core/security.py`
+- Registration/login routes that hash credentials and issue tokens: `backend/app/api/api_v1/endpoints/auth.py`
+- Request token validation dependency (`get_current_user` parses Authorization header): `backend/app/api/deps.py`
+- Input validation for email/password via `UserCreate`: `backend/app/schemas/user.py`
 
 ### Friends (`/api/v1/friends`)
 - `GET /` - Get list of friends
